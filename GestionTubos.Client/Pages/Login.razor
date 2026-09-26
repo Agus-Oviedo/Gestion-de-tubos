@@ -1,0 +1,24 @@
+@page "/login"
+@inject AutenticacionApiService Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Ingresar - Oxígeno Norte</PageTitle>
+<div class="login-page">
+    <div class="login-card">
+        <img src="oxigeno-norte-logo.png" alt="Oxígeno Norte" />
+        <h1>Gestión de cilindros</h1>
+        <p>Ingresá con tu cuenta para continuar.</p>
+        <EditForm Model="modelo" OnValidSubmit="Ingresar">
+            <DataAnnotationsValidator />
+            <div class="mb-3"><label class="form-label">Correo</label><input class="form-control" @bind="modelo.Correo" @bind:event="oninput" /><ValidationMessage For="@(() => modelo.Correo)" /></div>
+            <div class="mb-3"><label class="form-label">Contraseña</label><input class="form-control" type="password" @bind="modelo.Contrasena" @bind:event="oninput" /><ValidationMessage For="@(() => modelo.Contrasena)" /></div>
+            @if (!string.IsNullOrWhiteSpace(error)) { <div class="alert alert-danger">@error</div> }
+            <button class="btn btn-primary w-100" disabled="@procesando">@(procesando ? "Ingresando..." : "Ingresar")</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private readonly LoginDto modelo = new(); private string? error; private bool procesando;
+    private async Task Ingresar() { procesando = true; error = null; try { await Auth.LoginAsync(modelo); Navigation.NavigateTo(""); } catch (Exception ex) { error = ex.Message; } finally { procesando = false; } }
+}

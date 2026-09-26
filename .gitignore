@@ -1,0 +1,18 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.log
+
+# Configuración privada y archivos de datos locales
+GestionTubos.Api/appsettings.json
+GestionTubos.Api/appsettings.*.local.json
+.env
+.env.*
+*.bak
+*.mdf
+*.ldf
+*.pfx
+*.p12
+.build-check/

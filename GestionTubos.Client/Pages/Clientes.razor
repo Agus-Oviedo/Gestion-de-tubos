@@ -1,0 +1,19 @@
+@page "/clientes"
+@attribute [Authorize]
+@inject ClienteApiService ClienteApi
+@inject NavigationManager Navigation
+<PageTitle>Clientes</PageTitle>
+<div class="d-flex justify-content-between align-items-center mb-4"><div><h1>Clientes</h1><p class="text-muted mb-0">Buscá rápidamente personas y empresas por nombre o documento.</p></div><button class="btn btn-primary" @onclick="Nuevo">Nuevo cliente</button></div>
+<div class="card card-body mb-4"><label class="form-label fw-bold">Buscar cliente</label><ClienteBuscador Clientes="clientes" ClienteId="clienteSeleccionadoId" ClienteIdChanged="SeleccionarCliente" Placeholder="Buscar por nombre, razón social, DNI o CUIT..."/></div>
+@if(!string.IsNullOrEmpty(error)){<div class="alert alert-danger">@error</div>}else if(cargando){<p>Cargando clientes...</p>}else if(clientes.Count==0){<div class="alert alert-info">Todavía no hay clientes registrados.</div>}else{
+<div class="d-flex justify-content-between align-items-center mb-2"><span class="text-muted">@(clienteSeleccionadoId.HasValue?"Cliente seleccionado":$"{clientes.Count} clientes registrados")</span>@if(clienteSeleccionadoId.HasValue){<button class="btn btn-sm btn-outline-secondary" @onclick="()=>SeleccionarCliente(null)">Ver todos</button>}</div>
+<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Cliente</th><th>Tipo</th><th>Documento</th><th>Contacto</th><th></th></tr></thead><tbody>@foreach(var cliente in ClientesVisibles){<tr><td><strong>@cliente.NombreMostrar</strong>@if(!string.IsNullOrWhiteSpace(cliente.NombreComercial)){<br/><small class="text-muted">@cliente.NombreComercial</small>}</td><td>@(cliente.Tipo==1?"Persona":"Empresa")</td><td>@(cliente.Tipo==1?cliente.Dni:cliente.CuitCuil)</td><td>@cliente.Telefono<br/><small class="text-muted">@cliente.Correo</small></td><td class="text-end"><button class="btn btn-sm btn-outline-secondary me-2" @onclick="()=>Direcciones(cliente.Id)">Direcciones</button><button class="btn btn-sm btn-outline-secondary me-2" @onclick="()=>Cilindros(cliente.Id)">Sus cilindros</button><button class="btn btn-sm btn-outline-primary me-2" @onclick="()=>Editar(cliente.Id)">Editar</button><ConfirmarAccion Texto="Dar de baja" Mensaje="@($"¿Seguro que querés dar de baja al cliente «{cliente.NombreMostrar}»?")" OnConfirmar="()=>EliminarAsync(cliente)" /></td></tr>}</tbody></table></div>}
+@code{
+ private List<ClienteDto>clientes=[];private int?clienteSeleccionadoId;private string?error;private bool cargando=true;private IEnumerable<ClienteDto>ClientesVisibles=>clienteSeleccionadoId.HasValue?clientes.Where(x=>x.Id==clienteSeleccionadoId):clientes;
+ protected override Task OnInitializedAsync()=>CargarAsync();
+ private async Task CargarAsync(){cargando=true;error=null;try{clientes=(await ClienteApi.ObtenerTodosAsync()).ToList();if(clienteSeleccionadoId.HasValue&&!clientes.Any(x=>x.Id==clienteSeleccionadoId))clienteSeleccionadoId=null;}catch(Exception ex){error=$"No se pudo conectar con la API. {ex.Message}";}finally{cargando=false;}}
+ private Task SeleccionarCliente(int?id){clienteSeleccionadoId=id;return Task.CompletedTask;}
+ private void Nuevo()=>Navigation.NavigateTo("/clientes/nuevo");private void Editar(int id)=>Navigation.NavigateTo($"/clientes/{id}");private void Direcciones(int id)=>Navigation.NavigateTo($"/clientes/{id}/direcciones");private void Cilindros(int id)=>Navigation.NavigateTo($"/clientes/{id}/cilindros");
+ private async Task EliminarAsync(ClienteDto cliente){try{await ClienteApi.EliminarAsync(cliente.Id);await CargarAsync();}catch(Exception ex){error=ex.Message;}}
+}
+

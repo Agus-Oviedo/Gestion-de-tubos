@@ -1,0 +1,60 @@
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<button type="button" class="@Clase" disabled="@(Deshabilitado || ejecutando)" @onclick="Abrir">@Texto</button>
+<dialog @ref="dialogo" class="confirmation-dialog" aria-labelledby="@tituloId" aria-describedby="@mensajeId">
+    <div class="p-4">
+        <h2 id="@tituloId" class="h5">Confirmar acción</h2>
+        <p id="@mensajeId" class="mb-4">@Mensaje</p>
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary" autofocus disabled="@ejecutando" @onclick="Cancelar">Cancelar</button>
+            <button type="button" class="btn btn-danger" disabled="@ejecutando" @onclick="Confirmar">@(ejecutando ? "Procesando…" : "Confirmar")</button>
+        </div>
+    </div>
+</dialog>
+
+@code {
+    [Parameter] public string Texto { get; set; } = "Eliminar";
+    [Parameter] public string Clase { get; set; } = "btn btn-sm btn-outline-danger";
+    [Parameter, EditorRequired] public string Mensaje { get; set; } = "";
+    [Parameter] public bool Deshabilitado { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnConfirmar { get; set; }
+    private readonly string tituloId = $"confirm-title-{Guid.NewGuid():N}";
+    private readonly string mensajeId = $"confirm-message-{Guid.NewGuid():N}";
+    private ElementReference dialogo;
+    private IJSObjectReference? modulo;
+    private bool ejecutando;
+    private bool eliminado;
+
+    private async Task Abrir()
+    {
+        if (Deshabilitado || ejecutando) return;
+        modulo ??= await JS.InvokeAsync<IJSObjectReference>("import", "./confirmation-dialog.js");
+        await modulo.InvokeVoidAsync("abrir", dialogo);
+    }
+    private async Task Cancelar()
+    {
+        if (!ejecutando && modulo is not null) await modulo.InvokeVoidAsync("cerrar", dialogo);
+    }
+    private async Task Confirmar()
+    {
+        if (ejecutando || Deshabilitado || modulo is null) return;
+        ejecutando = true;
+        try
+        {
+            await modulo.InvokeVoidAsync("procesando", dialogo);
+            await OnConfirmar.InvokeAsync();
+        }
+        finally
+        {
+            ejecutando = false;
+            if (eliminado) await modulo.DisposeAsync();
+            else await modulo.InvokeVoidAsync("cerrar", dialogo);
+        }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        eliminado = true;
+        if (modulo is not null && !ejecutando) await modulo.DisposeAsync();
+    }
+}

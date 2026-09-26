@@ -1,0 +1,40 @@
+@inject AutenticacionApiService Auth
+@inject NavigationManager Navigation
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid d-flex flex-nowrap align-items-center justify-content-between">
+        <a class="navbar-brand flex-shrink-1 me-2" style="width:auto" href=""><img src="oxigeno-norte-logo.png" alt="Oxígeno Norte" /></a>
+        <button type="button" title="Abrir menú" aria-label="Abrir menú de navegación" class="navbar-toggler flex-shrink-0 text-white fw-bold" @onclick="ToggleNavMenu"><span aria-hidden="true">☰</span> MENÚ</button>
+    </div>
+</div>
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+<AuthorizeView Context="sesion"><Authorized><nav class="flex-column">
+    <div class="menu-caption px-3">GESTIÓN OPERATIVA</div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="" Match="NavLinkMatch.All"><span class="bi bi-house-door-fill-nav-menu"></span> Inicio</NavLink></div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="clientes"><span class="bi bi-people-fill-nav-menu"></span> Clientes</NavLink></div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="cilindros"><span class="bi bi-list-nested-nav-menu"></span> Cilindros</NavLink></div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="pedidos"><span class="bi bi-list-nested-nav-menu"></span> Pedidos y entregas</NavLink></div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="repartos"><span class="bi bi-list-nested-nav-menu"></span> Repartos</NavLink></div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="recepciones"><span class="bi bi-list-nested-nav-menu"></span> Recepciones e ingresos</NavLink></div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="cargas"><span class="bi bi-list-nested-nav-menu"></span> Carga de cilindros</NavLink></div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="rampas"><span class="bi bi-list-nested-nav-menu"></span> Rampas y baterías</NavLink></div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="pruebas-hidraulicas"><span class="bi bi-list-nested-nav-menu"></span> Pruebas hidráulicas</NavLink></div>
+    <div class="nav-item px-3"><NavLink class="nav-link" href="movimientos"><span class="bi bi-list-nested-nav-menu"></span> Movimientos</NavLink></div>
+    <AuthorizeView Roles="Superadministrador,Administrador" Context="configuracionRol">
+        <details class="configuration-menu" open="@EsConfiguracion">
+            <summary class="nav-link mx-3" @onclick:stopPropagation="true"><span aria-hidden="true" class="configuration-icon">⚙</span> Configuración</summary>
+            <AuthorizeView Roles="Superadministrador" Context="catalogoRol"><div class="nav-item ps-4 pe-3"><NavLink class="nav-link" href="catalogos"><span class="bi bi-list-nested-nav-menu"></span> Catálogos</NavLink></div></AuthorizeView>
+            <div class="nav-item ps-4 pe-3"><NavLink class="nav-link" href="usuarios"><span class="bi bi-people-fill-nav-menu"></span> Usuarios</NavLink></div>
+        </details>
+    </AuthorizeView>
+    <div class="px-3 mt-3"><div class="text-white-50 small mb-2">@sesion.User.Identity?.Name</div><button class="btn btn-outline-light btn-sm w-100" @onclick="Salir">Cerrar sesión</button></div>
+</nav></Authorized></AuthorizeView>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+    private bool EsConfiguracion => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/') is "catalogos" or "usuarios";
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+    private async Task Salir() { await Auth.LogoutAsync(); Navigation.NavigateTo("login"); }
+}

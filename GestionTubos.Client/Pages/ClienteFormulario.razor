@@ -1,0 +1,94 @@
+@page "/clientes/nuevo"
+@page "/clientes/{Id:int}"
+@attribute [Authorize(Roles = "Superadministrador,Administrador")]
+@using GestionTubos.Shared.Clientes
+@inject GestionTubos.Client.Services.ClienteApiService ClienteApi
+@inject NavigationManager Navigation
+
+<PageTitle>@(Id.HasValue ? "Editar cliente" : "Nuevo cliente")</PageTitle>
+<h1>@(Id.HasValue ? "Editar cliente" : "Nuevo cliente")</h1>
+<p class="text-muted">Los campos visibles cambian según se trate de una persona o una empresa.</p>
+
+@if (cargando)
+{
+    <p>Cargando...</p>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger">@error</div> }
+    <EditForm Model="modelo" OnValidSubmit="GuardarAsync" class="card card-body">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Tipo</label>
+                <InputSelect class="form-select" @bind-Value="modelo.Tipo">
+                    <option value="1">Persona</option><option value="2">Empresa</option>
+                </InputSelect>
+            </div>
+            @if (modelo.Tipo == 1)
+            {
+                <div class="col-md-4"><label class="form-label">Nombre</label><InputText class="form-control" @bind-Value="modelo.Nombre" /><ValidationMessage For="() => modelo.Nombre" /></div>
+                <div class="col-md-4"><label class="form-label">Apellido</label><InputText class="form-control" @bind-Value="modelo.Apellido" /><ValidationMessage For="() => modelo.Apellido" /></div>
+                <div class="col-md-4"><label class="form-label">DNI</label><InputText class="form-control" @bind-Value="modelo.Dni" /></div>
+                <div class="col-md-4"><label class="form-label">CUIT/CUIL</label><InputText class="form-control" @bind-Value="modelo.CuitCuil" /></div>
+            }
+            else
+            {
+                <div class="col-md-4"><label class="form-label">Razón social</label><InputText class="form-control" @bind-Value="modelo.RazonSocial" /><ValidationMessage For="() => modelo.RazonSocial" /></div>
+                <div class="col-md-4"><label class="form-label">Nombre comercial</label><InputText class="form-control" @bind-Value="modelo.NombreComercial" /></div>
+                <div class="col-md-4"><label class="form-label">CUIT</label><InputText class="form-control" @bind-Value="modelo.CuitCuil" /><ValidationMessage For="() => modelo.CuitCuil" /></div>
+                <div class="col-md-4"><label class="form-label">Responsable</label><InputText class="form-control" @bind-Value="modelo.Responsable" /></div>
+            }
+            <div class="col-md-4"><label class="form-label">Teléfono</label><InputText class="form-control" @bind-Value="modelo.Telefono" /></div>
+            <div class="col-md-4"><label class="form-label">Correo</label><InputText class="form-control" @bind-Value="modelo.Correo" /><ValidationMessage For="() => modelo.Correo" /></div>
+            <div class="col-md-4">
+                <label class="form-label">Condición fiscal</label>
+                <InputSelect class="form-select" @bind-Value="modelo.CondicionFiscal">
+                    <option value="1">Responsable inscripto</option><option value="2">Monotributista</option>
+                    <option value="3">Consumidor final</option><option value="4">Exento</option><option value="5">No categorizado</option>
+                </InputSelect>
+            </div>
+        </div>
+        <div class="mt-4">
+            <button class="btn btn-primary me-2" type="submit" disabled="@guardando">@(guardando ? "Guardando..." : "Guardar")</button>
+            <button class="btn btn-outline-secondary" type="button" @onclick="Cancelar">Cancelar</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    [SupplyParameterFromQuery(Name="volver")] public string? VolverA { get; set; }
+    private ClienteGuardarDto modelo = new();
+    private bool cargando;
+    private bool guardando;
+    private string? error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!Id.HasValue) return;
+        cargando = true;
+        try
+        {
+            var x = await ClienteApi.ObtenerPorIdAsync(Id.Value);
+            if (x is null) { error = "No se encontró el cliente."; return; }
+            modelo = new ClienteGuardarDto { Tipo=x.Tipo, Nombre=x.Nombre, Apellido=x.Apellido, RazonSocial=x.RazonSocial, NombreComercial=x.NombreComercial, Dni=x.Dni, CuitCuil=x.CuitCuil, Responsable=x.Responsable, Telefono=x.Telefono, Correo=x.Correo, CondicionFiscal=x.CondicionFiscal };
+        }
+        catch (Exception ex) { error = ex.Message; }
+        finally { cargando = false; }
+    }
+
+    private async Task GuardarAsync()
+    {
+        guardando = true; error = null;
+        try
+        {
+            if (Id.HasValue) { await ClienteApi.ActualizarAsync(Id.Value, modelo); Navigation.NavigateTo("/clientes"); }
+            else { var creado=await ClienteApi.CrearAsync(modelo); Navigation.NavigateTo(VolverA=="recepciones"?$"/recepciones?clienteId={creado.Id}":VolverA=="pedidos"?$"/pedidos?clienteId={creado.Id}":"/clientes"); }
+        }
+        catch (Exception ex) { error = ex.Message; }
+        finally { guardando = false; }
+    }
+    private void Cancelar() => Navigation.NavigateTo(VolverA=="recepciones"?"/recepciones":VolverA=="pedidos"?"/pedidos":"/clientes");
+}

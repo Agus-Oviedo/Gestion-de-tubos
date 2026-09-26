@@ -1,0 +1,100 @@
+.page {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: #f4f7fb;
+}
+
+main {
+    flex: 1;
+}
+
+.sidebar {
+    background: linear-gradient(180deg, #061f4b 0%, #082d68 60%, #0759b8 125%);
+    box-shadow: 8px 0 30px rgba(2, 24, 62, .12);
+}
+
+.top-row {
+    background-color: rgba(255,255,255,.92);
+    border-bottom: 1px solid #dce6f3;
+    justify-content: space-between;
+    height: 4.25rem;
+    display: flex;
+    align-items: center;
+}
+
+.system-name { color:#08295f; font-weight:700; letter-spacing:.02em; }
+.company-location { color:#64809f; font-size:.85rem; }
+
+    .top-row ::deep a, .top-row ::deep .btn-link {
+        white-space: nowrap;
+        margin-left: 1.5rem;
+        text-decoration: none;
+    }
+
+    .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
+        text-decoration: underline;
+    }
+
+    .top-row ::deep a:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+@media (max-width: 640.98px) {
+    .sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 1100;
+    }
+
+    .top-row {
+        justify-content: space-between;
+        height: 3.5rem;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .system-name { font-size: .82rem; }
+    .company-location { display: none; }
+
+    article.content {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .top-row ::deep a, .top-row ::deep .btn-link {
+        margin-left: 0;
+    }
+}
+
+@media (min-width: 641px) {
+    .page {
+        flex-direction: row;
+    }
+
+    .sidebar {
+        width: 270px;
+        height: 100vh;
+        position: sticky;
+        top: 0;
+    }
+
+    .top-row {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .top-row.auth ::deep a:first-child {
+        flex: 1;
+        text-align: right;
+        width: 0;
+    }
+
+    .top-row, article {
+        padding-left: 2.25rem !important;
+        padding-right: 2.25rem !important;
+    }
+}

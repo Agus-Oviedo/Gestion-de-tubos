@@ -1,0 +1,46 @@
+@page "/catalogos"
+@attribute [Authorize(Roles = "Superadministrador")]
+@inject GestionTubos.Client.Services.CatalogoApiService Api
+
+<PageTitle>Catálogos</PageTitle>
+<h1>Catálogos</h1><p class="text-muted">Datos base utilizados para registrar y ubicar cilindros.</p>
+@if(error is not null){<div class="alert alert-danger">@error</div>}
+
+<div class="row g-4">
+ <div class="col-lg-4"><div class="card h-100"><div class="card-body"><h2 class="h4">Tipos de gas</h2>
+  <EditForm Model="gas" OnValidSubmit="CrearGas"><DataAnnotationsValidator/><ValidationSummary/>
+   <label class="form-label">Nombre</label><InputText class="form-control mb-2" @bind-Value="gas.Nombre"/>
+   <label class="form-label">Descripción</label><InputText class="form-control mb-3" @bind-Value="gas.Descripcion"/><button class="btn btn-primary">Agregar</button>
+  </EditForm><hr/>@foreach(var x in gases){<div class="d-flex justify-content-between border-bottom py-2"><span><strong>@x.Nombre</strong><br/><small>@x.Descripcion</small></span><ConfirmarAccion Texto="Quitar" Mensaje="@($"¿Seguro que querés desactivar el gas «{x.Nombre}»?")" OnConfirmar="()=>EliminarGas(x.Id)" /></div>}
+ </div></div></div>
+ <div class="col-lg-4"><div class="card h-100"><div class="card-body"><h2 class="h4">Capacidades</h2>
+  <EditForm Model="capacidad" OnValidSubmit="CrearCapacidad"><DataAnnotationsValidator/><ValidationSummary/>
+   <div class="row"><div class="col-7"><label class="form-label">Valor</label><InputNumber class="form-control" @bind-Value="capacidad.Valor"/></div><div class="col-5"><label class="form-label">Unidad</label><InputText class="form-control" @bind-Value="capacidad.Unidad"/></div></div>
+   <label class="form-label mt-2">Descripción</label><InputText class="form-control mb-3" @bind-Value="capacidad.Descripcion"/><button class="btn btn-primary">Agregar</button>
+  </EditForm><hr/>@foreach(var x in capacidades){<div class="d-flex justify-content-between border-bottom py-2"><span><strong>@x.Valor @x.Unidad</strong><br/><small>@x.Descripcion</small></span><ConfirmarAccion Texto="Quitar" Mensaje="@($"¿Seguro que querés desactivar la capacidad «{x.Valor} {x.Unidad}»?")" OnConfirmar="()=>EliminarCapacidad(x.Id)" /></div>}
+ </div></div></div>
+ <div class="col-lg-4"><div class="card h-100"><div class="card-body"><h2 class="h4" id="ubicaciones">Ubicaciones y sectores internos</h2><p class="text-muted small">Marcá como interna cada zona dentro de planta, como Rampa o Planchada. Aparecerá en el selector de sector de los tubos.</p>
+  <EditForm Model="ubicacion" OnValidSubmit="GuardarUbicacion"><h3 class="h6">@(ubicacionEditando.HasValue?"Editar ubicación":"Nueva ubicación")</h3><DataAnnotationsValidator/><ValidationSummary/>
+   <label class="form-label">Nombre</label><InputText class="form-control mb-2" @bind-Value="ubicacion.Nombre"/>
+   <label class="form-label">Descripción</label><InputText class="form-control mb-2" @bind-Value="ubicacion.Descripcion"/>
+   <label class="mb-3"><InputCheckbox class="form-check-input me-2" @bind-Value="ubicacion.EsInterna"/>Sector interno de planta</label><br/><button class="btn btn-primary" disabled="@guardandoUbicacion">@(ubicacionEditando.HasValue?"Guardar cambios":"Agregar")</button>@if(ubicacionEditando.HasValue){<button type="button" class="btn btn-outline-secondary ms-2" disabled="@guardandoUbicacion" @onclick="CancelarUbicacion">Cancelar</button>}
+  </EditForm><hr/>@foreach(var x in ubicaciones){<div class="d-flex justify-content-between border-bottom py-2"><span><strong>@x.Nombre</strong> <small>@(x.EsInterna?"Sector interno":"Externa")</small><br/><small>@x.Descripcion</small></span><div class="d-flex gap-1 align-items-start"><button class="btn btn-sm btn-outline-primary" disabled="@guardandoUbicacion" @onclick="()=>EditarUbicacion(x)">Editar</button><ConfirmarAccion Texto="Desactivar" Deshabilitado="@guardandoUbicacion" Mensaje="@($"¿Seguro que querés desactivar la ubicación «{x.Nombre}»?")" OnConfirmar="()=>EliminarUbicacion(x.Id)" /></div></div>}
+ </div></div></div>
+</div>
+
+@code{
+ private TipoGasGuardarDto gas=new();private CapacidadGuardarDto capacidad=new();private UbicacionGuardarDto ubicacion=new();
+ private List<TipoGasDto> gases=[];private List<CapacidadDto> capacidades=[];private List<UbicacionDto> ubicaciones=[];private string? error;
+ protected override Task OnInitializedAsync()=>Cargar();
+ private async Task Cargar(){try{gases=await Api.GasesAsync();capacidades=await Api.CapacidadesAsync();ubicaciones=await Api.UbicacionesAsync();}catch(Exception ex){error=ex.Message;}}
+ private async Task CrearGas(){await Ejecutar(async()=>{await Api.CrearGasAsync(gas);gas=new();});}
+ private async Task CrearCapacidad(){await Ejecutar(async()=>{await Api.CrearCapacidadAsync(capacidad);capacidad=new();});}
+ private int? ubicacionEditando;private bool guardandoUbicacion;
+ private void EditarUbicacion(UbicacionDto x){error=null;ubicacionEditando=x.Id;ubicacion=new(){Nombre=x.Nombre,Descripcion=x.Descripcion,EsInterna=x.EsInterna};}
+ private void CancelarUbicacion(){ubicacionEditando=null;ubicacion=new();}
+ private async Task GuardarUbicacion(){if(guardandoUbicacion)return;guardandoUbicacion=true;try{await Ejecutar(async()=>{if(ubicacionEditando.HasValue)await Api.EditarUbicacionAsync(ubicacionEditando.Value,ubicacion);else await Api.CrearUbicacionAsync(ubicacion);CancelarUbicacion();});}finally{guardandoUbicacion=false;}}
+ private Task EliminarGas(int id)=>Ejecutar(()=>Api.EliminarGasAsync(id));private Task EliminarCapacidad(int id)=>Ejecutar(()=>Api.EliminarCapacidadAsync(id));private async Task EliminarUbicacion(int id){if(guardandoUbicacion)return;guardandoUbicacion=true;try{await Ejecutar(async()=>{await Api.EliminarUbicacionAsync(id);if(ubicacionEditando==id)CancelarUbicacion();});}finally{guardandoUbicacion=false;}}
+ private async Task Ejecutar(Func<Task> accion){error=null;try{await accion();await Cargar();}catch(Exception ex){error=ex.Message;}}
+}
+
+

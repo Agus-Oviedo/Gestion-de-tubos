@@ -1,0 +1,56 @@
+@page "/clientes/{ClienteId:int}/direcciones"
+@attribute [Authorize]
+@inject GestionTubos.Client.Services.ClienteApiService ClienteApi
+@inject NavigationManager Navigation
+
+<PageTitle>Direcciones del cliente</PageTitle>
+<h1>Direcciones</h1>
+<p class="text-muted">Registrá direcciones fiscales y de entrega. Sólo puede existir una entrega principal.</p>
+
+@if (!string.IsNullOrWhiteSpace(error)) { <div class="alert alert-danger">@error</div> }
+
+<EditForm Model="modelo" OnValidSubmit="CrearAsync" class="card card-body mb-4">
+    <DataAnnotationsValidator /><ValidationSummary />
+    <div class="row g-3">
+        <div class="col-md-5"><label class="form-label">Calle</label><InputText class="form-control" @bind-Value="modelo.Calle" /></div>
+        <div class="col-md-2"><label class="form-label">Número</label><InputText class="form-control" @bind-Value="modelo.Numero" /></div>
+        <div class="col-md-2"><label class="form-label">Piso/Depto.</label><InputText class="form-control" @bind-Value="modelo.PisoDepartamento" /></div>
+        <div class="col-md-3"><label class="form-label">Código postal</label><InputText class="form-control" @bind-Value="modelo.CodigoPostal" /></div>
+        <div class="col-md-6"><label class="form-label">Localidad</label><InputText class="form-control" @bind-Value="modelo.Localidad" /></div>
+        <div class="col-md-6"><label class="form-label">Provincia</label><InputText class="form-control" @bind-Value="modelo.Provincia" /></div>
+        <div class="col-md-3"><label><InputCheckbox class="form-check-input me-2" @bind-Value="modelo.EsFiscal" />Dirección fiscal</label></div>
+        <div class="col-md-4"><label><InputCheckbox class="form-check-input me-2" @bind-Value="modelo.EsPrincipalEntrega" />Entrega principal</label></div>
+    </div>
+    <div class="mt-3"><button class="btn btn-primary me-2" disabled="@guardando">Agregar dirección</button><button type="button" class="btn btn-outline-secondary" @onclick="Volver">Volver</button></div>
+</EditForm>
+
+@if (direcciones.Count == 0) { <div class="alert alert-info">El cliente todavía no tiene direcciones.</div> }
+else
+{
+    <div class="list-group">
+    @foreach (var d in direcciones)
+    {
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div><strong>@d.Calle @d.Numero</strong><br />@d.Localidad, @d.Provincia
+                @if (d.EsFiscal) { <span class="badge bg-secondary ms-2">Fiscal</span> }
+                @if (d.EsPrincipalEntrega) { <span class="badge bg-primary ms-2">Entrega principal</span> }
+            </div>
+            <ConfirmarAccion Texto="Quitar" Mensaje="@($"¿Seguro que querés quitar la dirección «{d.Calle} {d.Numero}, {d.Localidad}»?")" OnConfirmar="() => EliminarAsync(d.Id)" />
+        </div>
+    }
+    </div>
+}
+
+@code {
+    [Parameter] public int ClienteId { get; set; }
+    private DireccionClienteGuardarDto modelo = new();
+    private List<DireccionClienteDto> direcciones = [];
+    private string? error;
+    private bool guardando;
+    protected override Task OnInitializedAsync() => CargarAsync();
+    private async Task CargarAsync() { try { direcciones = (await ClienteApi.ObtenerDireccionesAsync(ClienteId)).ToList(); } catch (Exception ex) { error = ex.Message; } }
+    private async Task CrearAsync() { guardando=true; error=null; try { await ClienteApi.CrearDireccionAsync(ClienteId, modelo); modelo=new(); await CargarAsync(); } catch(Exception ex) { error=ex.Message; } finally { guardando=false; } }
+    private async Task EliminarAsync(int id) { try { await ClienteApi.EliminarDireccionAsync(ClienteId,id); await CargarAsync(); } catch(Exception ex) { error=ex.Message; } }
+    private void Volver() => Navigation.NavigateTo("/clientes");
+}
+

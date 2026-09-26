@@ -1,0 +1,122 @@
+@page "/rampas"
+@attribute [Authorize]
+@inject TuboApiService Api
+@inject CatalogoApiService Catalogos
+
+<PageTitle>Rampas y baterías</PageTitle>
+<h1>Rampas y baterías</h1>
+<p class="text-muted">Lista de tubos propios. Los sectores Rampa y Planchada están dentro de planta. Elegí el sector interno de cada tubo y guardá el cambio.</p>
+
+@if (error is not null) { <div class="alert alert-danger" role="alert">@error</div> }
+@if (mensaje is not null) { <div class="alert alert-success" role="status">@mensaje</div> }
+
+<div class="card card-body mb-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-8">
+            <label for="buscar-tubo" class="form-label">Buscar tubo</label>
+            <input id="buscar-tubo" type="search" class="form-control" placeholder="Código, serie, gas, ubicación o sector" @bind="buscar" @bind:event="oninput" />
+        </div>
+        <div class="col-md-4"><span class="text-muted">@Filtrados.Count de @tubos.Count tubos propios</span></div>
+    </div>
+</div>
+
+@if (cargando) { <p>Cargando tubos propios...</p> }
+else if (tubos.Count == 0) { <div class="alert alert-info">Todavía no hay tubos propios registrados.</div> }
+else
+{
+    @if (ubicaciones.Count == 0) { <div class="alert alert-info">No hay sectores internos activos para asignar. Cargalas desde Configuración → Catálogos.</div> }
+    @if (Filtrados.Count == 0) { <div class="alert alert-info">No hay tubos que coincidan con la búsqueda.</div> }
+    else
+    {
+        <div class="card"><div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead><tr><th>Tubo / serie</th><th>Gas / capacidad</th><th>Contenido</th><th>Estado operativo</th><th>Ubicación general</th><th>Sector interno</th><AuthorizeView Roles="Superadministrador,Administrador"><th>Asignar sector</th></AuthorizeView></tr></thead>
+                <tbody>
+                    @foreach (var t in Filtrados)
+                    {
+                        <tr @key="t.Id">
+                            <td><strong>@t.CodigoInterno</strong><br /><small>@t.NumeroSerie</small></td>
+                            <td>@t.Gas<br /><small>@t.Capacidad</small></td>
+                            <td>@Contenido(t.EstadoContenido)</td>
+                            <td>@Estado(t.EstadoDisponibilidad)</td>
+                            <td>@UbicacionGeneral(t)</td><td>@SectorActual(t)</td>
+                            <AuthorizeView Roles="Superadministrador,Administrador">
+                                <td>
+                                    @if (PuedeMover(t))
+                                    {
+                                        <div class="d-flex gap-2">
+                                            <select class="form-select" style="min-width: 150px" aria-label="@($"Sector interno para {t.CodigoInterno}")" @bind="destinos[t.Id]" disabled="@guardando">
+                                                @foreach (var u in ubicaciones) { <option value="@u.Id">@NombreSector(u.Nombre)</option> }
+                                            </select>
+                                            <button class="btn btn-primary" aria-label="@($"Guardar sector de {t.CodigoInterno}")" disabled="@(guardando || destinos[t.Id] == t.UbicacionId)" @onclick="() => Guardar(t)">Guardar</button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <small class="text-muted">@(ubicaciones.Any(u => u.Id == t.UbicacionId) ? "Gestionar desde su operación en curso." : "El tubo debe estar en planta para asignarle un sector.")</small>
+                                    }
+                                </td>
+                            </AuthorizeView>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div></div>
+    }
+}
+
+@code {
+    private List<TuboDto> tubos = [];
+    private List<UbicacionDto> ubicaciones = [];
+    private Dictionary<int, int> destinos = [];
+    private string buscar = "";
+    private string? error, mensaje;
+    private bool cargando = true, guardando;
+    private List<TuboDto> Filtrados => tubos.Where(t => string.IsNullOrWhiteSpace(buscar)
+        || string.Join(' ', t.CodigoInterno, t.NumeroSerie, t.Gas, t.Ubicacion, UbicacionGeneral(t), SectorActual(t)).Contains(buscar.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+    private bool PuedeMover(TuboDto t) => t.EstadoDisponibilidad is 1 or 6 or 7 or 8 && ubicaciones.Any(u => u.Id == t.UbicacionId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            ubicaciones = (await Catalogos.UbicacionesAsync()).Where(x => x.EsInterna).ToList();
+            tubos = (await Api.Todos()).Where(x => x.TipoPropietario == 1).OrderBy(x => x.CodigoInterno).ToList();
+            destinos = tubos.ToDictionary(x => x.Id, x => x.UbicacionId);
+        }
+        catch (Exception e) { error = e.Message; }
+        finally { cargando = false; }
+    }
+
+    private async Task Guardar(TuboDto tubo)
+    {
+        if (guardando || !PuedeMover(tubo)) return;
+        var destino = destinos[tubo.Id];
+        if (destino == tubo.UbicacionId) return;
+        guardando = true; error = mensaje = null;
+        try
+        {
+            await Api.UbicarPropios(new() { UbicacionDestinoId = destino, Tubos = [new() { Id = tubo.Id, UbicacionOrigenId = tubo.UbicacionId }] });
+            var nombre = ubicaciones.First(x => x.Id == destino).Nombre;
+            tubos[tubos.FindIndex(x => x.Id == tubo.Id)] = tubo with { UbicacionId = destino, Ubicacion = nombre };
+            mensaje = $"Tubo {tubo.CodigoInterno}: sector interno actualizado a {NombreSector(nombre)}. Continúa en planta.";
+        }
+        catch (Exception e) { error = e.Message; }
+        finally { guardando = false; }
+    }
+
+    private bool EnPlanta(TuboDto t) => t.EstadoDisponibilidad is not (3 or 4 or 9 or 10) && ubicaciones.Any(u => u.Id == t.UbicacionId);
+    private string UbicacionGeneral(TuboDto t) => t.EstadoDisponibilidad switch
+    {
+        3 => "En reparto",
+        4 => "En poder de un cliente",
+        9 => "Dado de baja",
+        10 => "Ubicación desconocida",
+        _ => EnPlanta(t) ? "En planta" : t.Ubicacion
+    };
+    private string SectorActual(TuboDto t) => EnPlanta(t) ? NombreSector(t.Ubicacion) : "—";
+    private static string NombreSector(string nombre) => nombre.Equals("PLANTA", StringComparison.OrdinalIgnoreCase) ? "General (sin sector asignado)" : nombre;
+    private static string Contenido(int x) => x switch { 1 => "Lleno", 2 => "Vacío", 3 => "Parcial", _ => "Desconocido" };
+    private static string Estado(int x) => x switch { 1 => "Disponible", 2 => "Reservado", 3 => "En reparto", 4 => "Fuera de planta", 5 => "En carga", 6 => "A inspeccionar", 7 => "Mantenimiento", 8 => "Prueba hidráulica", 9 => "Baja", 10 => "Extraviado", _ => "Desconocido" };
+}
+
