@@ -1,6 +1,8 @@
 @page "/login"
+@layout LoginLayout
 @inject AutenticacionApiService Auth
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>Ingresar - Oxígeno Norte</PageTitle>
 <div class="login-page">
@@ -8,17 +10,28 @@
         <img src="oxigeno-norte-logo.png" alt="Oxígeno Norte" />
         <h1>Gestión de cilindros</h1>
         <p>Ingresá con tu cuenta para continuar.</p>
-        <EditForm Model="modelo" OnValidSubmit="Ingresar">
+        <EditForm Model="modelo" OnValidSubmit="Ingresar" FormName="login">
             <DataAnnotationsValidator />
-            <div class="mb-3"><label class="form-label">Correo</label><input class="form-control" @bind="modelo.Correo" @bind:event="oninput" /><ValidationMessage For="@(() => modelo.Correo)" /></div>
-            <div class="mb-3"><label class="form-label">Contraseña</label><input class="form-control" type="password" @bind="modelo.Contrasena" @bind:event="oninput" /><ValidationMessage For="@(() => modelo.Contrasena)" /></div>
+            <div class="mb-3"><label class="form-label">Correo</label><input class="form-control" name="username" autocomplete="username" @bind="modelo.Correo" @bind:event="oninput" /><ValidationMessage For="@(() => modelo.Correo)" /></div>
+            <div class="mb-3"><label class="form-label">Contraseña</label><input class="form-control" name="password" type="password" autocomplete="current-password" @bind="modelo.Contrasena" @bind:event="oninput" /><ValidationMessage For="@(() => modelo.Contrasena)" /></div>
+            <div class="form-check mb-3"><input id="recordarCorreo" class="form-check-input" type="checkbox" @bind="recordarCorreo" /><label class="form-check-label" for="recordarCorreo">Recordar mi correo</label></div>
             @if (!string.IsNullOrWhiteSpace(error)) { <div class="alert alert-danger">@error</div> }
             <button class="btn btn-primary w-100" disabled="@procesando">@(procesando ? "Ingresando..." : "Ingresar")</button>
         </EditForm>
+        <a class="d-block mt-3" href="registro">Crear una cuenta</a>
+        <small class="d-block mt-2">Las cuentas nuevas requieren aprobación de un administrador.</small>
     </div>
 </div>
 
 @code {
-    private readonly LoginDto modelo = new(); private string? error; private bool procesando;
-    private async Task Ingresar() { procesando = true; error = null; try { await Auth.LoginAsync(modelo); Navigation.NavigateTo(""); } catch (Exception ex) { error = ex.Message; } finally { procesando = false; } }
+    private const string CorreoKey = "gestionCilindros.correo";
+    private readonly LoginDto modelo = new(); private string? error; private bool procesando; private bool recordarCorreo = true;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        var correo = await JS.InvokeAsync<string?>("localStorage.getItem", CorreoKey);
+        if (!string.IsNullOrWhiteSpace(correo)) modelo.Correo = correo;
+        StateHasChanged();
+    }
+    private async Task Ingresar() { procesando = true; error = null; try { await Auth.LoginAsync(modelo); if(recordarCorreo) await JS.InvokeVoidAsync("localStorage.setItem", CorreoKey, modelo.Correo); else await JS.InvokeVoidAsync("localStorage.removeItem", CorreoKey); Navigation.NavigateTo(""); } catch (Exception ex) { error = ex.Message; } finally { procesando = false; } }
 }

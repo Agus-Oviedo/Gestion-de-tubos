@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <ProjectReference Include="..\GestionTubos.Client\GestionTubos.Client.csproj" />
     <ProjectReference Include="..\GestionTubos.Application\GestionTubos.Application.csproj" />
     <ProjectReference Include="..\GestionTubos.Infrastructure\GestionTubos.Infrastructure.csproj" />
     <ProjectReference Include="..\GestionTubos.Shared\GestionTubos.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.21" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.21" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.21">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

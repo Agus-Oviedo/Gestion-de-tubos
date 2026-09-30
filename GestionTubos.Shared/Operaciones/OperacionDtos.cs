@@ -7,8 +7,8 @@ public sealed record MovimientoDto(long Id, int CilindroId, string CodigoCilindr
 public sealed class PruebaHidraulicaGuardarDto
 {
     [Range(1, int.MaxValue)] public int CilindroId { get; set; }
-    public DateOnly FechaRealizacion { get; set; } = DateOnly.FromDateTime(DateTime.Today);
-    public DateOnly FechaVencimiento { get; set; } = DateOnly.FromDateTime(DateTime.Today.AddYears(5));
+    public DateOnly FechaRealizacion { get; set; } = DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy);
+    public DateOnly FechaVencimiento { get; set; } = DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy.AddYears(5));
     public bool Aprobada { get; set; } = true;
     [Required, StringLength(200)] public string EntidadRealizadora { get; set; } = string.Empty;
     [StringLength(100)] public string? NumeroCertificado { get; set; }

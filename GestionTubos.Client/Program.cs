@@ -9,9 +9,12 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 var apiUrlConfigurada = builder.Configuration["ApiUrl"];
+var direccionBase = new Uri(builder.HostEnvironment.BaseAddress);
 var apiUrl = string.IsNullOrWhiteSpace(apiUrlConfigurada)
-    ? $"{new Uri(builder.HostEnvironment.BaseAddress).Scheme}://{new Uri(builder.HostEnvironment.BaseAddress).Host}:5105/"
-    : apiUrlConfigurada;
+    ? (builder.HostEnvironment.IsDevelopment()
+        ? new UriBuilder(direccionBase) { Port = 5105 }.Uri.AbsoluteUri
+        : direccionBase.AbsoluteUri)
+    : new Uri(direccionBase, apiUrlConfigurada).AbsoluteUri;
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<LocalAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<LocalAuthStateProvider>());

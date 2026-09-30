@@ -1,19 +1,117 @@
 @page "/cilindros/nuevo"
 @page "/cilindros/{Id:int}"
 @attribute [Authorize(Roles = "Superadministrador,Administrador")]
-@inject GestionTubos.Client.Services.TuboApiService Api
-@inject GestionTubos.Client.Services.CatalogoApiService Catalogos
-@inject GestionTubos.Client.Services.ClienteApiService Clientes
+@inject TuboApiService Api
+@inject CatalogoApiService Catalogos
 @inject NavigationManager Nav
-<PageTitle>Registro de cilindro</PageTitle><h1>@(Id.HasValue?"Editar cilindro":"Nuevo cilindro")</h1><p class="text-muted">Cada cilindro se identifica y rastrea por separado.</p>
-@if(error is not null){<div class="alert alert-danger">@error</div>}
-<EditForm Model="m" OnValidSubmit="Guardar" class="card card-body"><DataAnnotationsValidator/><ValidationSummary/><div class="row g-3">
-<div class="col-md-4"><label class="form-label">Código interno</label><InputText class="form-control" @bind-Value="m.CodigoInterno"/></div><div class="col-md-4"><label class="form-label">Número de serie</label><InputText class="form-control" @bind-Value="m.NumeroSerie"/></div><div class="col-md-4"><label class="form-label">Identificación grabada</label><InputText class="form-control" @bind-Value="m.IdentificacionGrabada"/></div>
-<div class="col-md-4"><label class="form-label">Gas</label><InputSelect class="form-select" @bind-Value="m.TipoGasId"><option value="0">Seleccionar</option>@foreach(var x in gases){<option value="@x.Id">@x.Nombre</option>}</InputSelect></div><div class="col-md-4"><label class="form-label">Capacidad</label><InputSelect class="form-select" @bind-Value="m.CapacidadTuboId"><option value="0">Seleccionar</option>@foreach(var x in capacidades){<option value="@x.Id">@x.Valor @x.Unidad</option>}</InputSelect></div>@if(m.TipoPropietario==2){<div class="col-md-4"><label class="form-label">Ubicación</label><div class="form-control bg-light text-muted">En poder del cliente</div><div class="form-text">La ubicación interna se indicará cuando el cilindro ingrese a planta.</div></div>}else{<div class="col-md-4"><label class="form-label">Ubicación</label><InputSelect class="form-select" @bind-Value="m.UbicacionId"><option value="0">Seleccionar</option>@foreach(var x in ubicaciones){<option value="@x.Id">@x.Nombre</option>}</InputSelect></div>}
-<div class="col-md-4"><label class="form-label">Propietario</label><InputSelect class="form-select" @bind-Value="m.TipoPropietario"><option value="1">Oxígeno Norte</option><option value="2">Cliente</option><option value="3">Proveedor</option><option value="4">Otro tercero</option></InputSelect></div>@if(m.TipoPropietario==2){<div class="col-md-4"><label class="form-label">Cliente propietario</label><ClienteBuscador Clientes="clientes" ClienteId="m.ClientePropietarioId" ClienteIdChanged="id=>m.ClientePropietarioId=id"/></div>}else if(m.TipoPropietario is 3 or 4){<div class="col-md-4"><label class="form-label">Nombre del propietario</label><InputText class="form-control" @bind-Value="m.NombrePropietarioExterno"/></div>}
-<div class="col-md-4"><label class="form-label">Contenido</label><InputSelect class="form-select" @bind-Value="m.EstadoContenido"><option value="1">Lleno</option><option value="2">Vacío</option><option value="3">Parcial</option><option value="4">Desconocido</option></InputSelect></div><div class="col-md-4"><label class="form-label">Estado físico</label><InputSelect class="form-select" @bind-Value="m.EstadoFisico"><option value="1">Bueno</option><option value="2">Con observaciones</option><option value="3">Dañado</option><option value="4">Inutilizable</option></InputSelect></div>@if(m.TipoPropietario==2){<div class="col-md-4"><label class="form-label">Estado operativo</label><div class="form-control bg-light text-muted">Administrado por recepciones, cargas y entregas</div><div class="form-text">El cilindro pertenece exclusivamente al cliente y nunca integra el stock disponible general.</div></div>}else{<div class="col-md-4"><label class="form-label">Disponibilidad</label><InputSelect class="form-select" @bind-Value="m.EstadoDisponibilidad"><option value="1">Disponible</option><option value="5">En carga</option><option value="6">Pendiente de inspección</option><option value="7">Mantenimiento</option><option value="8">Prueba hidráulica</option><option value="10">Extraviado</option></InputSelect></div>}
-<div class="col-md-4"><label class="form-label">Marca</label><InputText class="form-control" @bind-Value="m.Marca"/></div><div class="col-md-4"><label class="form-label">Fabricante</label><InputText class="form-control" @bind-Value="m.Fabricante"/></div><div class="col-12"><label class="form-label">Observaciones</label><InputTextArea class="form-control" @bind-Value="m.Observaciones"/></div></div>
-@if(!Id.HasValue){<hr class="my-4"/><div class="form-check form-switch mb-3"><InputCheckbox class="form-check-input" @bind-Value="m.RegistrarPruebaInicial"/><label class="form-check-label fw-bold">Registrar la última prueba hidráulica</label></div>
-@if(m.RegistrarPruebaInicial){<div class="rounded border bg-light p-3"><div class="row g-3"><div class="col-md-3"><label class="form-label">Fecha de prueba</label><InputDate class="form-control" @bind-Value="m.FechaPruebaHidraulica"/></div><div class="col-md-3"><label class="form-label">Vencimiento</label><InputDate class="form-control" @bind-Value="m.FechaVencimientoPrueba"/></div><div class="col-md-3"><label class="form-label">Entidad realizadora</label><InputText class="form-control" @bind-Value="m.EntidadPrueba"/></div><div class="col-md-3"><label class="form-label">Certificado</label><InputText class="form-control" @bind-Value="m.NumeroCertificadoPrueba"/></div><div class="col-md-3"><label class="form-label">Resultado</label><InputSelect class="form-select" @bind-Value="m.PruebaAprobada"><option value="true">Aprobada</option><option value="false">Rechazada</option></InputSelect></div><div class="col-md-9"><label class="form-label">Observaciones de la prueba</label><InputText class="form-control" @bind-Value="m.ObservacionesPrueba"/></div></div></div>}else{<div class="alert alert-warning">Sin una prueba vigente, el cilindro se guardará en estado <strong>Prueba hidráulica</strong> y no podrá entregarse.</div>}}
-<div class="mt-4"><button class="btn btn-primary me-2">Guardar</button><button type="button" class="btn btn-outline-secondary" @onclick="Cancelar">Cancelar</button></div></EditForm>
-@code{[Parameter]public int?Id{get;set;}[SupplyParameterFromQuery(Name="clienteId")]public int?ClienteId{get;set;}[SupplyParameterFromQuery(Name="volver")]public string?VolverA{get;set;}private TuboGuardarDto m=new();private List<TipoGasDto>gases=[];private List<CapacidadDto>capacidades=[];private List<UbicacionDto>ubicaciones=[];private List<ClienteDto>clientes=[];private string?error;protected override async Task OnInitializedAsync(){gases=await Catalogos.GasesAsync();capacidades=await Catalogos.CapacidadesAsync();ubicaciones=await Catalogos.UbicacionesAsync();clientes=(await Clientes.ObtenerTodosAsync()).ToList();if(Id.HasValue){var x=await Api.Uno(Id.Value);if(x is not null)m=new(){CodigoInterno=x.CodigoInterno,NumeroSerie=x.NumeroSerie,IdentificacionGrabada=x.IdentificacionGrabada,TipoGasId=x.TipoGasId,CapacidadTuboId=x.CapacidadTuboId,TipoPropietario=x.TipoPropietario,ClientePropietarioId=x.ClientePropietarioId,NombrePropietarioExterno=x.NombrePropietarioExterno,EstadoFisico=x.EstadoFisico,EstadoContenido=x.EstadoContenido,EstadoDisponibilidad=x.EstadoDisponibilidad,UbicacionId=x.UbicacionId,Marca=x.Marca,Fabricante=x.Fabricante,FechaFabricacion=x.FechaFabricacion,Observaciones=x.Observaciones};}else if(ClienteId.HasValue&&clientes.Any(x=>x.Id==ClienteId.Value)){m.TipoPropietario=2;m.ClientePropietarioId=ClienteId;}}private void Cancelar()=>Nav.NavigateTo(VolverA=="recepciones"?(ClienteId.HasValue?$"/recepciones?clienteId={ClienteId}":"/recepciones"):(ClienteId.HasValue?$"/clientes/{ClienteId}/cilindros":"/cilindros"));private async Task Guardar(){try{if(Id.HasValue){await Api.Editar(Id.Value,m);Nav.NavigateTo(ClienteId.HasValue?$"/clientes/{ClienteId}/cilindros":"/cilindros");}else{var creado=await Api.Crear(m);Nav.NavigateTo(VolverA=="recepciones"?$"/recepciones?clienteId={creado.ClientePropietarioId}&cilindroId={creado.Id}":(ClienteId.HasValue?$"/clientes/{ClienteId}/cilindros":"/cilindros"));}}catch(Exception e){error=e.Message;}}}
+
+<PageTitle>@(Id.HasValue ? "Editar tubo" : "Cargar tubo")</PageTitle>
+<div class="mb-4">
+    <a href="cilindros" class="text-decoration-none">← Volver al stock</a>
+    <h1 class="mt-3 mb-1">@(Id.HasValue ? $"Editar tubo #{Id}" : "Cargar nuevo tubo")</h1>
+    <p class="text-muted mb-0">El ID interno se asigna automáticamente. Ingresá el código de serie que está grabado en el tubo.</p>
+</div>
+
+@if (error is not null) { <div class="alert alert-danger">@error</div> }
+
+<EditForm Model="modelo" OnValidSubmit="Guardar" class="card stock-form">
+    <DataAnnotationsValidator />
+    <div class="card-body p-lg-4">
+        <ValidationSummary />
+        <h2 class="h5 mb-3">Identificación</h2>
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label">Código de serie <span class="text-danger">*</span></label>
+                <InputText class="form-control form-control-lg" @bind-Value="modelo.CodigoInterno" placeholder="Código grabado en el tubo" autocomplete="off" />
+                <ValidationMessage For="@(() => modelo.CodigoInterno)" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Tipo de gas <span class="text-danger">*</span></label>
+                <InputSelect class="form-select form-select-lg" @bind-Value="modelo.TipoGasId"><option value="0">Seleccionar</option>@foreach (var x in gases) { <option value="@x.Id">@x.Nombre</option> }</InputSelect>
+                <ValidationMessage For="@(() => modelo.TipoGasId)" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Capacidad <span class="text-danger">*</span></label>
+                <InputSelect class="form-select form-select-lg" @bind-Value="modelo.CapacidadTuboId"><option value="0">Seleccionar</option>@foreach (var x in capacidades) { <option value="@x.Id">@x.Valor @x.Unidad</option> }</InputSelect>
+                <ValidationMessage For="@(() => modelo.CapacidadTuboId)" />
+            </div>
+        </div>
+
+        <h2 class="h5 mb-3">Datos de stock</h2>
+        <div class="row g-3">
+            <div class="col-md-4"><label class="form-label">Marca</label><InputText class="form-control" @bind-Value="modelo.Marca" placeholder="Opcional" /></div>
+            <div class="col-md-4">
+                <label class="form-label">Propietario</label>
+                <InputSelect class="form-select" @bind-Value="modelo.TipoPropietario"><option value="1">Oxígeno Norte</option><option value="4">Otro propietario</option></InputSelect>
+            </div>
+            @if (modelo.TipoPropietario == 4)
+            {
+                <div class="col-md-4"><label class="form-label">Nombre del propietario <span class="text-danger">*</span></label><InputText class="form-control" @bind-Value="modelo.NombrePropietarioExterno" /></div>
+            }
+            <div class="col-md-4">
+                <label class="form-label">Ubicación <span class="text-danger">*</span></label>
+                <InputSelect class="form-select" @bind-Value="modelo.UbicacionId"><option value="0">Seleccionar</option>@foreach (var x in ubicaciones) { <option value="@x.Id">@x.Nombre</option> }</InputSelect>
+                <ValidationMessage For="@(() => modelo.UbicacionId)" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Estado</label>
+                <InputSelect class="form-select" @bind-Value="modelo.EstadoDisponibilidad"><option value="1">Disponible</option><option value="4">En uso</option><option value="7">Mantenimiento</option><option value="10">Extraviado</option></InputSelect>
+            </div>
+            <div class="col-12"><hr class="my-2" /></div>
+            <div class="col-12"><h2 class="h5 mb-0">Prueba hidráulica</h2><p class="text-muted small mb-0">Ingresá los datos grabados o documentados de la última prueba realizada.</p></div>
+            <div class="col-md-4">
+                <label class="form-label">Fecha de la prueba <span class="text-danger">*</span></label>
+                <InputDate class="form-control" @bind-Value="modelo.FechaPruebaHidraulica" />
+                <ValidationMessage For="@(() => modelo.FechaPruebaHidraulica)" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Fecha de vencimiento <span class="text-danger">*</span></label>
+                <InputDate class="form-control" @bind-Value="modelo.FechaVencimientoPrueba" />
+                <ValidationMessage For="@(() => modelo.FechaVencimientoPrueba)" />
+            </div>
+            <div class="col-12"><label class="form-label">Observaciones</label><InputTextArea class="form-control" rows="3" @bind-Value="modelo.Observaciones" placeholder="Información adicional del tubo" /></div>
+        </div>
+    </div>
+    <div class="card-footer bg-white border-top p-3 p-lg-4 d-flex flex-wrap gap-2 justify-content-end">
+        <button type="button" class="btn btn-outline-secondary" @onclick="Cancelar">Cancelar</button>
+        <button class="btn btn-primary px-4" disabled="@guardando">@(guardando ? "Guardando..." : Id.HasValue ? "Guardar cambios" : "Cargar tubo")</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private TuboGuardarDto modelo = NuevoModelo();
+    private List<TipoGasDto> gases = [];
+    private List<CapacidadDto> capacidades = [];
+    private List<UbicacionDto> ubicaciones = [];
+    private string? error;
+    private bool guardando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            gases = await Catalogos.GasesAsync();
+            capacidades = await Catalogos.CapacidadesAsync();
+            ubicaciones = (await Catalogos.UbicacionesAsync()).Where(x => x.EsInterna).ToList();
+            if (Id.HasValue)
+            {
+                var x = await Api.Uno(Id.Value);
+                if (x is null) { error = "No se encontró el tubo."; return; }
+                modelo = new TuboGuardarDto { CodigoInterno = x.CodigoInterno, TipoGasId = x.TipoGasId, CapacidadTuboId = x.CapacidadTuboId, TipoPropietario = x.TipoPropietario is 1 ? 1 : 4, NombrePropietarioExterno = x.TipoPropietario is 1 ? null : x.Propietario, EstadoFisico = 1, EstadoContenido = 4, EstadoDisponibilidad = x.EstadoDisponibilidad, UbicacionId = x.UbicacionId, Marca = x.Marca, Observaciones = x.Observaciones, RegistrarPruebaInicial = true, PruebaAprobada = true, EntidadPrueba = "No especificada", FechaPruebaHidraulica = x.FechaPruebaHidraulica ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy), FechaVencimientoPrueba = x.FechaVencimientoPrueba ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy.AddYears(5)) };
+            }
+        }
+        catch (Exception ex) { error = ex.Message; }
+    }
+
+    private static TuboGuardarDto NuevoModelo() => new() { TipoPropietario = 1, EstadoFisico = 1, EstadoContenido = 4, EstadoDisponibilidad = 1, RegistrarPruebaInicial = true, PruebaAprobada = true, EntidadPrueba = "No especificada" };
+    private void Cancelar() => Nav.NavigateTo("/cilindros");
+    private async Task Guardar()
+    {
+        if (guardando) return;
+        guardando = true; error = null;
+        try { if (Id.HasValue) await Api.Editar(Id.Value, modelo); else await Api.Crear(modelo); Nav.NavigateTo("/cilindros"); }
+        catch (Exception ex) { error = ex.Message; }
+        finally { guardando = false; }
+    }
+}

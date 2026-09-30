@@ -1,11 +1,47 @@
 @page "/"
 @attribute [Authorize]
-@inject OperacionApiService Api
-<PageTitle>Panel</PageTitle>
-<section class="brand-welcome card border-0 overflow-hidden mb-4"><div class="card-body p-5"><span class="welcome-label">OXÍGENO NORTE</span><h1 class="display-5 mt-3">Gestión clara para cada cilindro.</h1><p class="lead text-muted col-lg-8">Inventario propio separado de los cilindros de clientes que están temporalmente en planta.</p></div></section>
-@if(error is not null){<div class="alert alert-danger">@error</div>}else if(datos is null){<p>Cargando panel...</p>}else{
-<h2 class="h5 mb-3">Inventario de Oxígeno Norte</h2><div class="row g-3 mb-4">@foreach(var k in inventario){<div class="col-6 col-lg-3"><div class="card card-body h-100"><span class="text-muted small text-uppercase">@k.Titulo</span><strong class="display-6 mt-2">@k.Valor</strong></div></div>}</div>
-<h2 class="h5 mb-3">Operación en planta</h2><div class="row g-3 mb-4">@foreach(var k in operacion){<div class="col-6 col-lg-3"><div class="card card-body h-100"><span class="text-muted small text-uppercase">@k.Titulo</span><strong class="display-6 mt-2">@k.Valor</strong></div></div>}</div>
-<div class="row g-4"><div class="col-lg-7"><div class="card"><div class="card-body"><h2 class="h4">Últimos movimientos</h2><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Fecha</th><th>Cilindro</th><th>Movimiento</th></tr></thead><tbody>@foreach(var x in datos.UltimosMovimientos){<tr><td>@x.FechaHoraUtc.ToLocalTime().ToString("dd/MM HH:mm")</td><td>@x.CodigoCilindro</td><td>@x.Tipo</td></tr>}</tbody></table></div></div></div></div><div class="col-lg-5"><div class="card card-body"><h2 class="h4">Accesos rápidos</h2><a class="btn btn-primary mb-2" href="pedidos">Pedidos y entregas</a><a class="btn btn-outline-primary mb-2" href="recepciones">Recepciones e ingresos</a><a class="btn btn-outline-primary mb-2" href="cilindros/nuevo">Registrar cilindro</a><a class="btn btn-outline-primary" href="pruebas-hidraulicas">Registrar prueba hidráulica</a></div></div></div>}
-<style>.brand-welcome{background:linear-gradient(120deg,#fff 0%,#f4f9ff 58%,#ddecff 100%);position:relative}.brand-welcome:after{content:"ON";position:absolute;right:4%;top:-30%;font-weight:900;font-size:13rem;color:rgba(6,91,185,.06);letter-spacing:-.1em}.welcome-label{color:#0879df;font-size:.78rem;font-weight:900;letter-spacing:.22em}</style>
-@code{private DashboardDto?datos;private string?error;private IEnumerable<(string Titulo,int Valor)>inventario=>datos is null?[]:[("Inventario propio",datos.InventarioPropioTotal),("Propios en planta",datos.PropiosEnPlanta),("Propios en clientes",datos.PropiosEnClientes),("En reparto",datos.EnReparto)];private IEnumerable<(string Titulo,int Valor)>operacion=>datos is null?[]:[("De clientes en planta",datos.CilindrosClientesEnPlanta),("En carga",datos.EnCarga),("A inspeccionar",datos.PendientesInspeccion),("Pruebas vencidas",datos.PruebasVencidas),("Pruebas próximas",datos.PruebasProximas),("Operaciones propias abiertas",datos.OperacionesAbiertas)];protected override async Task OnInitializedAsync(){try{datos=await Api.Dashboard();}catch(Exception e){error=e.Message;}}}
+@inject TuboApiService Api
+
+<PageTitle>Resumen de stock</PageTitle>
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div><span class="stock-eyebrow">OXÍGENO NORTE</span><h1 class="mt-2 mb-1">Control de stock</h1><p class="text-muted mb-0">Vista general de los tubos registrados en el sistema.</p></div>
+    <AuthorizeView Roles="Superadministrador,Administrador"><a class="btn btn-primary btn-lg" href="cilindros/nuevo">＋ Cargar tubo</a></AuthorizeView>
+</div>
+@if (error is not null) { <div class="alert alert-danger">@error</div> }
+else if (cargando) { <p>Cargando stock...</p> }
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3"><div class="stock-stat"><span>Total registrados</span><strong>@tubos.Count</strong></div></div>
+        <div class="col-6 col-xl-3"><div class="stock-stat stock-stat--ok"><span>Disponibles</span><strong>@Contar(1)</strong></div></div>
+        <div class="col-6 col-xl-3"><div class="stock-stat stock-stat--use"><span>En uso</span><strong>@Contar(4)</strong></div></div>
+        <div class="col-6 col-xl-3"><div class="stock-stat stock-stat--warn"><span>Mantenimiento</span><strong>@Contar(7)</strong></div></div>
+    </div>
+    <div class="row g-4">
+        <div class="col-lg-7"><div class="card h-100"><div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h4 mb-0">Stock por gas</h2><a href="cilindros" class="btn btn-sm btn-outline-primary">Ver todos</a></div>
+            @if (tubos.Count == 0) { <div class="empty-stock"><strong>Todavía no hay tubos cargados.</strong><span>Registrá el primero para comenzar a controlar el stock.</span></div> }
+            else
+            {
+                @foreach (var grupo in tubos.GroupBy(x => x.Gas).OrderByDescending(x => x.Count()))
+                {
+                    var porcentaje = (int)Math.Round(grupo.Count() * 100d / tubos.Count);
+                    <div class="stock-group mb-3"><div class="d-flex justify-content-between mb-1"><strong>@grupo.Key</strong><span>@grupo.Count() tubos</span></div><div class="progress"><div class="progress-bar" style="width:@porcentaje%"></div></div></div>
+                }
+            }
+        </div></div></div>
+        <div class="col-lg-5"><div class="card h-100"><div class="card-body">
+            <h2 class="h4 mb-3">Stock por ubicación</h2>
+            @foreach (var grupo in tubos.GroupBy(x => x.Ubicacion).OrderByDescending(x => x.Count())) { <div class="d-flex justify-content-between align-items-center py-2 border-bottom"><span>@grupo.Key</span><strong class="location-count">@grupo.Count()</strong></div> }
+            @if (tubos.Count == 0) { <p class="text-muted mb-0">Sin ubicaciones con tubos registrados.</p> }
+        </div></div></div>
+    </div>
+}
+
+@code {
+    private List<TuboDto> tubos = [];
+    private bool cargando = true;
+    private string? error;
+    protected override async Task OnInitializedAsync() { try { tubos = await Api.Todos(); } catch (Exception ex) { error = ex.Message; } finally { cargando = false; } }
+    private int Contar(int estado) => tubos.Count(x => x.EstadoDisponibilidad == estado);
+}

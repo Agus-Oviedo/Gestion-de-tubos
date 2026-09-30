@@ -42,7 +42,7 @@ public sealed class PedidoService(GestionTubosDbContext db) : IPedidoService
         if(pedido.ModalidadEntrega=="Domicilio"&&pedido.Estado!="En reparto")throw new InvalidOperationException("Una entrega a domicilio debe iniciarse desde Repartos antes de confirmarla.");
         if(pedido.ModalidadEntrega=="RetiroPlanta"&&pedido.Estado=="En reparto")throw new InvalidOperationException("Un retiro en planta no puede formar parte de un reparto.");
         if(pedido.Estado is not ("Preparado" or "En reparto")||pedido.Detalles.Any(x=>x.Tubo.EstadoDisponibilidad is not (EstadoDisponibilidad.Reservado or EstadoDisponibilidad.EnReparto)))throw new InvalidOperationException("El pedido no está preparado para la entrega.");
-        var hoy=DateOnly.FromDateTime(DateTime.Today);var ids=pedido.Detalles.Select(x=>x.TuboId).ToList();
+        var hoy=DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy);var ids=pedido.Detalles.Select(x=>x.TuboId).ToList();
         var pruebas=await db.PruebasHidraulicas.Where(x=>ids.Contains(x.TuboId)&&x.Aprobada).GroupBy(x=>x.TuboId).Select(g=>new{TuboId=g.Key,Vence=g.Max(x=>x.FechaVencimiento)}).ToDictionaryAsync(x=>x.TuboId,x=>x.Vence,ct);
         if(ids.Any(id=>!pruebas.TryGetValue(id,out var vence)||vence<hoy))throw new InvalidOperationException("Todos los cilindros deben tener una prueba hidráulica vigente.");
         var baseNumero=await db.OperacionesCilindro.CountAsync(ct);var numeroOperacion=0;var ubicacionCliente=await UbicacionesSistema.ObtenerEnPoderDelClienteAsync(db,ct);
@@ -54,7 +54,7 @@ public sealed class PedidoService(GestionTubosDbContext db) : IPedidoService
             if(tubo.TipoPropietario!=TipoPropietarioTubo.Cliente)
             {
                 numeroOperacion++;
-                db.OperacionesCilindro.Add(new OperacionCilindro{Numero=$"OP-{DateTime.Today:yyyyMMdd}-{baseNumero+numeroOperacion:D5}",Tipo=dto.Modalidad,ClienteId=pedido.ClienteId,TuboId=tubo.Id,DiasSinCargo=dto.DiasSinCargo,FechaLimite=dto.DiasSinCargo>0?hoy.AddDays(dto.DiasSinCargo):null,PersonaRecibe=Limpiar(dto.PersonaRecibe),Observaciones=Limpiar(dto.Observaciones??pedido.Observaciones)});
+                db.OperacionesCilindro.Add(new OperacionCilindro{Numero=$"OP-{GestionTubos.Shared.HoraArgentina.Hoy:yyyyMMdd}-{baseNumero+numeroOperacion:D5}",Tipo=dto.Modalidad,ClienteId=pedido.ClienteId,TuboId=tubo.Id,DiasSinCargo=dto.DiasSinCargo,FechaLimite=dto.DiasSinCargo>0?hoy.AddDays(dto.DiasSinCargo):null,PersonaRecibe=Limpiar(dto.PersonaRecibe),Observaciones=Limpiar(dto.Observaciones??pedido.Observaciones)});
             }
             db.MovimientosCilindro.Add(new MovimientoCilindro{TuboId=tubo.Id,Tipo="Entrega de pedido",UbicacionOrigenId=origen,UbicacionDestinoId=ubicacionCliente,ClienteId=pedido.ClienteId,EstadoAnterior=anterior,EstadoPosterior=Estado(tubo),UsuarioResponsable=usuario,Observaciones=$"{pedido.Numero} / {pedido.Remito.Numero}. {Limpiar(dto.Observaciones)}".Trim()});
         }

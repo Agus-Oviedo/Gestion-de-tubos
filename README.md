@@ -1,107 +1,80 @@
-# Gestión de Cilindros - Oxígeno Norte
+# Control de Stock de Tubos - Oxígeno Norte
 
-Sistema web interno para administrar clientes, cilindros, stock y trazabilidad. La solución utiliza una API ASP.NET Core independiente y un frontend Blazor WebAssembly que se comunican mediante HTTP/JSON.
+Sistema web interno para registrar los tubos existentes y mantener un stock claro por gas, capacidad, propietario, ubicación y estado.
+
+La solución utiliza una API ASP.NET Core en .NET 8, un cliente Blazor WebAssembly y SQL Server. La autenticación se realiza con ASP.NET Identity y JWT.
+
+## Funcionalidad principal
+
+- Inicio de sesión mediante correo y contraseña.
+- Alta de cada tubo con un ID interno generado automáticamente.
+- Código de serie grabado, obligatorio y único para cada tubo.
+- Clasificación por gas, capacidad, propietario, ubicación y estado.
+- Consulta del stock con búsqueda y filtros.
+- Edición y baja lógica de tubos.
+- Resumen del stock por estado, gas y ubicación.
+- Interfaz responsive para computadoras, tablets y celulares.
+- Configuración de gases, capacidades y ubicaciones.
+
+## Datos de cada tubo
+
+- ID interno automático, que no debe ingresarse manualmente.
+- Código de serie grabado en el tubo.
+- Tipo de gas.
+- Capacidad.
+- Marca opcional.
+- Propietario.
+- Ubicación.
+- Estado: disponible, en uso, mantenimiento o extraviado.
+- Fecha de la última prueba hidráulica y fecha de vencimiento.
+- Observaciones opcionales.
 
 ## Componentes
 
-- `GestionTubos.Api`: API REST en .NET 8.
-- `GestionTubos.Client`: frontend Blazor WebAssembly.
-- `GestionTubos.Domain`: entidades y estados del negocio.
-- `GestionTubos.Application`: interfaces de casos de uso.
-- `GestionTubos.Infrastructure`: EF Core, SQL Server y servicios.
-- `GestionTubos.Shared`: contratos JSON compartidos.
+- `GestionTubos.Api`: API REST.
+- `GestionTubos.Client`: interfaz web.
+- `GestionTubos.Domain`: entidades del dominio.
+- `GestionTubos.Application`: contratos de servicios.
+- `GestionTubos.Infrastructure`: acceso a SQL Server, Identity y servicios.
+- `GestionTubos.Shared`: contratos compartidos entre cliente y API.
 
-## Funcionalidad disponible
+## Configuración y ejecución
 
-- Clientes persona y empresa, con múltiples direcciones.
-- Catálogos de gases, capacidades y ubicaciones.
-- Registro individual de cilindros y baja lógica.
-- Estados físico, de contenido y de disponibilidad separados.
-- Pruebas hidráulicas, certificados y vencimientos calculados.
-- Entregas por alquiler, comodato o intercambio.
-- Recepciones con estado físico, contenido e inspección requerida.
-- Historial inalterable de movimientos.
-- Stock derivado de cilindros individuales.
-- Alertas de pruebas vencidas o próximas a vencer.
-- Panel con indicadores y últimos movimientos.
-
-## Base de datos
-
-Configurar el servidor SQL Server de cada PC en `GestionTubos.Api/appsettings.json`, con autenticación de Windows.
-
-Base: `GestionTubosDb`.
-
-Las migraciones se aplican con:
-
-```powershell
-dotnet ef database update --project GestionTubos.Infrastructure --startup-project GestionTubos.Api
-```
-
-También se mantiene el script idempotente `database/GestionTubosDb.sql` para SSMS.
-
-## Instalar en otra PC
-
-Requisitos: Git, SDK de .NET 8 y SQL Server (Express o Developer para desarrollo).
-
-1. Clonar este repositorio y abrir PowerShell en su carpeta.
-2. Copiar la configuración de ejemplo:
-
-   ```powershell
-   Copy-Item GestionTubos.Api/appsettings.example.json GestionTubos.Api/appsettings.json
-   ```
-
-3. Editar el archivo copiado: indicar la instancia de SQL Server en `ConnectionStrings:GestionTubos`, completar `Jwt:Key` con una clave aleatoria de al menos 32 bytes y elegir `UsuarioInicial:Correo` y `UsuarioInicial:Contrasena`. La contraseña debe tener mayúsculas, minúsculas, números y un símbolo. Este archivo es privado y Git lo ignora.
-4. Restaurar dependencias y crear o actualizar la base:
+1. Copiar `GestionTubos.Api/appsettings.example.json` como `GestionTubos.Api/appsettings.json`.
+2. Configurar la conexión `GestionTubos`, la clave JWT y el usuario inicial.
+3. Restaurar dependencias y actualizar la base:
 
    ```powershell
    dotnet restore
-   dotnet tool install --global dotnet-ef --version 8.0.21
    dotnet ef database update --project GestionTubos.Infrastructure --startup-project GestionTubos.Api
    ```
 
-   Si `dotnet-ef` ya está instalado, omitir su instalación. Las migraciones son la fuente actualizada del esquema.
+4. Ejecutar:
 
-5. Ejecutar `./iniciar.ps1` y abrir http://localhost:5000. En una base nueva, ingresar con el usuario inicial configurado.
-
-Git no copia los datos de SQL Server. Para conservar clientes, cilindros, usuarios y movimientos existentes, hacer un backup de `GestionTubosDb` y restaurarlo en la otra PC antes de aplicar migraciones. Los backups se transfieren por separado y no se suben al repositorio. Las dos instalaciones con bases locales tendrán datos independientes.
-
-## Trabajar desde dos PCs
-
-Antes de empezar, ejecutar `git pull --ff-only`. Al terminar:
-
-```powershell
-git add .
-git commit -m "Descripción de los cambios"
-git push
-```
-
-Subir los cambios de una PC antes de continuar en la otra. La configuración privada se mantiene por separado en cada equipo.
-
-## Ejecución
-
-Desde PowerShell en la carpeta raíz:
-
-```powershell
-.\iniciar.ps1
-```
-
-O en dos terminales:
-
-```powershell
-dotnet run --project GestionTubos.Api --urls http://localhost:5105
-dotnet run --project GestionTubos.Client --urls http://localhost:5000
-```
+   ```powershell
+   .\iniciar.ps1
+   ```
 
 Frontend: http://localhost:5000
 
 API: http://localhost:5105
 
-## Flujo de uso recomendado
+## Publicación en MonsterASP
 
-1. Crear gases, capacidades y ubicaciones en Catálogos.
-2. Registrar clientes y sus direcciones.
-3. Registrar cada cilindro individualmente.
-4. Registrar su prueba hidráulica vigente.
-5. Confirmar una entrega.
-6. Registrar la recepción cuando regrese.
-7. Consultar movimientos y alertas desde el panel.
+### Horarios y registro de cuentas
+
+Los instantes se conservan en UTC en la base y se muestran en la zona `America/Argentina/Buenos_Aires`. Los vencimientos, las fechas sugeridas y los números diarios utilizan la fecha argentina, sin depender de la zona horaria del servidor o del navegador.
+
+Desde el inicio de sesión, **Crear una cuenta** permite registrarse con nombre, correo y contraseña. Las cuentas nuevas quedan inactivas con rol Empleado. Un Administrador o Superadministrador las habilita en **Usuarios → Aprobar cuenta**. La aprobación no implica verificar la propiedad del correo. El registro público no acepta elegir roles ni habilitar la cuenta.
+
+`verificar-registro.ps1` prueba registro, rechazo de duplicados, bloqueo de acceso pendiente, aprobación y permisos contra una instancia local; elimina su cuenta temporal al terminar.
+
+La API también sirve la interfaz Blazor, de modo que ambos componentes se publican en un único sitio IIS. En producción, el cliente utiliza la dirección del sitio para conectarse a la API; en desarrollo conserva el puerto 5105. `ApiUrl` permite configurar una dirección alternativa.
+
+```powershell
+dotnet publish GestionTubos.Api/GestionTubos.Api.csproj -c Release -o .publish/monsterasp
+```
+
+Antes de cargar el contenido de `.publish/monsterasp`, configurar allí la conexión SQL Server de MonsterASP, la clave JWT y el usuario inicial. No colocar secretos en `wwwroot`: sus archivos son públicos. La configuración local de SQL Server no sirve en el hosting.
+
+Restaurar una copia de seguridad de la base existente en una base separada de MonsterASP antes de iniciar la aplicación. Esto conserva usuarios, catálogos y movimientos. Habilitar HTTPS y verificar el inicio de sesión y el stock después de publicar. La carpeta `.publish` está excluida del control de versiones porque puede contener configuraciones privadas y copias de seguridad.

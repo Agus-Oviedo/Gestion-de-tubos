@@ -1,11 +1,28 @@
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
-            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                <NotAuthorized><RedirectToLogin /></NotAuthorized>
-            </AuthorizeRouteView>
-            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            @if (EsRutaDeStock(routeData.PageType))
+            {
+                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                    <NotAuthorized><RedirectToLogin /></NotAuthorized>
+                </AuthorizeRouteView>
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            }
+            else
+            {
+                <RedirectToStock />
+            }
         </Found>
         <NotFound><LayoutView Layout="@typeof(MainLayout)"><p>Página no encontrada.</p></LayoutView></NotFound>
     </Router>
 </CascadingAuthenticationState>
+
+@code {
+    private static bool EsRutaDeStock(Type pagina) => pagina == typeof(Pages.Login)
+        || pagina == typeof(Pages.Registro)
+        || pagina == typeof(Pages.Home)
+        || pagina == typeof(Pages.Tubos)
+        || pagina == typeof(Pages.TuboFormulario)
+        || pagina == typeof(Pages.Usuarios)
+        || pagina == typeof(Pages.Catalogos);
+}

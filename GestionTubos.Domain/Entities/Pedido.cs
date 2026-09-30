@@ -25,7 +25,7 @@ public sealed class Reparto
 {
     public long Id { get; set; }
     public string Numero { get; set; } = string.Empty;
-    public DateOnly Fecha { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+    public DateOnly Fecha { get; set; } = DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy);
     public string Responsable { get; set; } = string.Empty;
     public string Estado { get; set; } = "Preparado";
     public DateTime FechaCreacionUtc { get; set; } = DateTime.UtcNow;

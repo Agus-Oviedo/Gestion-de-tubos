@@ -16,3 +16,4 @@ GestionTubos.Api/appsettings.*.local.json
 *.pfx
 *.p12
 .build-check/
+.publish/

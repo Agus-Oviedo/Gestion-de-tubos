@@ -29,7 +29,7 @@
  </EditForm></div>
 </div>
 
-<div class="card shadow-sm"><div class="card-header bg-white"><h2 class="h5 mb-0">Entregas pendientes de devolución</h2></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th>Cilindro</th><th>Modalidad</th></tr></thead><tbody>@if(abiertas.Count==0){<tr><td colspan="5" class="text-center text-muted py-4">No hay entregas abiertas.</td></tr>}@foreach(var x in abiertas){<tr><td><strong>@x.Numero</strong></td><td>@x.FechaHoraUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td>@x.Cliente</td><td>@x.CodigoCilindro</td><td>@x.Tipo</td></tr>}</tbody></table></div></div>
+<div class="card shadow-sm"><div class="card-header bg-white"><h2 class="h5 mb-0">Entregas pendientes de devolución</h2></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th>Cilindro</th><th>Modalidad</th></tr></thead><tbody>@if(abiertas.Count==0){<tr><td colspan="5" class="text-center text-muted py-4">No hay entregas abiertas.</td></tr>}@foreach(var x in abiertas){<tr><td><strong>@x.Numero</strong></td><td>@x.FechaHoraUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm")</td><td>@x.Cliente</td><td>@x.CodigoCilindro</td><td>@x.Tipo</td></tr>}</tbody></table></div></div>
 
 @code {
  [SupplyParameterFromQuery(Name="clienteId")]public int?ClienteIdInicial{get;set;} [SupplyParameterFromQuery(Name="cilindroId")]public int?CilindroIdInicial{get;set;}

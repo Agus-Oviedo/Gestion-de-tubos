@@ -1,0 +1,39 @@
+@page "/registro"
+@layout LoginLayout
+@inject AutenticacionApiService Auth
+
+<PageTitle>Crear cuenta - Oxígeno Norte</PageTitle>
+<div class="login-page"><div class="login-card">
+    <img src="oxigeno-norte-logo.png" alt="Oxígeno Norte" />
+    <h1>Crear cuenta</h1>
+    <p>Tu cuenta será habilitada por un administrador.</p>
+    @if (creada)
+    {
+        <div class="alert alert-success" role="status">Cuenta creada. Esperá la aprobación de un administrador para ingresar.</div>
+    }
+    else
+    {
+        <EditForm Model="modelo" OnValidSubmit="Registrar">
+            <DataAnnotationsValidator /><ValidationSummary />
+            <div class="mb-3"><label for="nombre" class="form-label">Nombre completo</label><InputText id="nombre" class="form-control" autocomplete="name" @bind-Value="modelo.NombreCompleto" /></div>
+            <div class="mb-3"><label for="correo" class="form-label">Correo</label><InputText id="correo" type="email" class="form-control" autocomplete="email" @bind-Value="modelo.Correo" /></div>
+            <div class="mb-3"><label for="clave" class="form-label">Contraseña</label><InputText id="clave" type="password" class="form-control" autocomplete="new-password" @bind-Value="modelo.Contrasena" /><small>Al menos 8 caracteres, con mayúscula, minúscula y número.</small></div>
+            <div class="mb-3"><label for="confirmacion" class="form-label">Repetir contraseña</label><InputText id="confirmacion" type="password" class="form-control" autocomplete="new-password" @bind-Value="modelo.ConfirmarContrasena" /></div>
+            @if(error is not null){<div class="alert alert-danger" role="alert">@error</div>}
+            <button class="btn btn-primary w-100" disabled="@procesando">@(procesando ? "Creando cuenta…" : "Crear cuenta")</button>
+        </EditForm>
+    }
+    <a class="d-block mt-3" href="login">Volver a ingresar</a>
+</div></div>
+@code {
+    private RegistroDto modelo = new();
+    private bool procesando, creada;
+    private string? error;
+    private async Task Registrar()
+    {
+        procesando = true; error = null;
+        try { await Auth.RegistrarAsync(modelo); creada = true; modelo = new(); }
+        catch(Exception ex) { error = ex.Message; }
+        finally { procesando = false; }
+    }
+}

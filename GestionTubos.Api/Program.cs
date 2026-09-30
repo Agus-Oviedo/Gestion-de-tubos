@@ -22,7 +22,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)), ClockSkew = TimeSpan.FromMinutes(1)
     };
 });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+    .RequireAuthenticatedUser()
+    .RequireRole(IdentitySeeder.Roles)
+    .Build());
 builder.Services.AddCors(options => options.AddPolicy("Blazor", policy =>
     policy.SetIsOriginAllowed(origin =>
         Uri.TryCreate(origin, UriKind.Absolute, out var uri) && uri.Port == 5000)
@@ -33,15 +36,18 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 
 app.UseHttpsRedirection();
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
 app.UseCors("Blazor");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapFallbackToFile("index.html");
 
 app.MapGet("/api/estado", () => Results.Ok(new
 {
-    aplicacion = "Gestión de Cilindros",
+    aplicacion = "Control de Stock de Tubos",
     estado = "activa"
 }));
 

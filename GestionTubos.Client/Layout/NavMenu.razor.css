@@ -92,7 +92,7 @@
 .configuration-menu summary:focus-visible { outline: 2px solid #71b8ff; outline-offset: 2px; }
 .configuration-icon { width: 1.25rem; margin-right: .75rem; font-size: 1.25rem; }
 
-@media (max-width: 640.98px) {
+@media (max-width: 991.98px) {
     .top-row {
         height: 4.75rem;
         padding: .45rem .75rem !important;
@@ -136,7 +136,7 @@
     }
 }
 
-@media (min-width: 641px) {
+@media (min-width: 992px) {
     .navbar-toggler {
         display: none;
     }

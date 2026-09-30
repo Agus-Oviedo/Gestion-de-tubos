@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 namespace GestionTubos.Shared.Repartos;
 public sealed class RepartoCrearDto
 {
-    public DateOnly Fecha { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+    public DateOnly Fecha { get; set; } = DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy);
     [Required,StringLength(150)] public string Responsable { get; set; } = string.Empty;
     [MinLength(1,ErrorMessage="Seleccioná al menos un pedido.")] public List<long> PedidoIds { get; set; }=[];
     [StringLength(1000)] public string? Observaciones { get; set; }

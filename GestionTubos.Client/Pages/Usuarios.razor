@@ -1,21 +1,27 @@
 @page "/usuarios"
 @attribute [Authorize(Roles = "Superadministrador,Administrador")]
 @inject AutenticacionApiService Api
+@inject AuthenticationStateProvider AuthState
 
 <PageTitle>Usuarios</PageTitle>
 <h1>Usuarios</h1>
 <div class="card shadow-sm mb-4"><div class="card-body"><h5>Nuevo usuario</h5>
 <EditForm Model="nuevo" OnValidSubmit="Crear"><DataAnnotationsValidator />
 <div class="row g-3"><div class="col-md-3"><label class="form-label">Nombre completo</label><InputText class="form-control" @bind-Value="nuevo.NombreCompleto" /></div>
-<div class="col-md-3"><label class="form-label">Correo</label><InputText class="form-control" @bind-Value="nuevo.Correo" /></div>
-<div class="col-md-2"><label class="form-label">Contraseña</label><InputText type="password" class="form-control" @bind-Value="nuevo.Contrasena" /></div>
+<div class="col-md-3"><label class="form-label">Correo</label><InputText class="form-control" autocomplete="off" @bind-Value="nuevo.Correo" /></div>
+<div class="col-md-2"><label class="form-label">Contraseña</label><InputText type="password" class="form-control" autocomplete="new-password" @bind-Value="nuevo.Contrasena" /></div>
 <div class="col-md-2"><label class="form-label">Rol</label><InputSelect class="form-select" @bind-Value="nuevo.Rol"><option>Empleado</option><option>Administrador</option><AuthorizeView Roles="Superadministrador" Context="rolContext"><option>Superadministrador</option></AuthorizeView></InputSelect></div>
 <div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary w-100">Crear</button></div></div><ValidationSummary />
 @if (!string.IsNullOrWhiteSpace(mensaje)) { <div class="alert @(esError ? "alert-danger" : "alert-success") mt-3 mb-0">@mensaje</div> }
 </EditForm></div></div>
-<div class="table-responsive"><table class="table table-striped"><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th></tr></thead><tbody>@foreach (var u in usuarios) { <tr><td>@u.NombreCompleto</td><td>@u.Correo</td><td>@string.Join(", ", u.Roles)</td><td>@(u.Activo ? "Activo" : "Inactivo")</td></tr> }</tbody></table></div>
+<div class="table-responsive"><table class="table table-striped align-middle"><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>@foreach (var u in usuarios) { <tr><td>@u.NombreCompleto</td><td>@u.Correo</td><td>@if(PuedeCambiarRol(u)){<select class="form-select form-select-sm" value="@RolActual(u)" @onchange="@(e => CambiarRol(u.Id, e.Value?.ToString() ?? string.Empty))" disabled="@actualizando"><option value="" disabled>Sin asignar</option><option value="Empleado">Empleado</option><option value="Administrador">Administrador</option><AuthorizeView Roles="Superadministrador" Context="rolEdicionContext"><option value="Superadministrador">Superadministrador</option></AuthorizeView></select>}else{@string.Join(", ", u.Roles)}</td><td>@Estado(u)</td><td>@if(!u.Activo){<button class="btn btn-sm btn-success" disabled="@(actualizando || u.Roles.Count != 1)" title="@(u.Roles.Count == 0 ? "Primero asigná un rol" : null)" @onclick="()=>Aprobar(u.Id)">Aprobar cuenta</button>}</td></tr> }</tbody></table></div>
 
-@code { private List<UsuarioDto> usuarios=[]; private UsuarioCrearDto nuevo=new(); private string? mensaje; private bool esError;
-protected override async Task OnInitializedAsync()=>usuarios=(await Api.UsuariosAsync()).ToList();
+@code { private bool actualizando; private bool esSuperadministrador; private string? correoActual; private Dictionary<string,string> rolesEditados=[]; private async Task Aprobar(string id){actualizando=true;try{await Api.AprobarAsync(id);await Recargar();mensaje="Cuenta habilitada correctamente.";esError=false;}catch(Exception ex){mensaje=ex.Message;esError=true;}finally{actualizando=false;}} private List<UsuarioDto> usuarios=[]; private UsuarioCrearDto nuevo=new(); private string? mensaje; private bool esError;
+protected override async Task OnInitializedAsync(){var usuario=(await AuthState.GetAuthenticationStateAsync()).User;esSuperadministrador=usuario.IsInRole("Superadministrador");correoActual=usuario.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;await Recargar();}
+private string RolActual(UsuarioDto usuario)=>rolesEditados.GetValueOrDefault(usuario.Id, usuario.Roles.FirstOrDefault()??string.Empty);
+private bool PuedeCambiarRol(UsuarioDto usuario)=>!usuario.Roles.Contains("Superadministrador") || (esSuperadministrador && !string.Equals(usuario.Correo,correoActual,StringComparison.OrdinalIgnoreCase));
+private string Estado(UsuarioDto usuario)=>!usuario.Activo ? "Pendiente de aprobación" : usuario.Roles.Count == 0 ? "Sin rol asignado" : "Activo";
+private async Task Recargar(){usuarios=(await Api.UsuariosAsync()).ToList();rolesEditados=usuarios.ToDictionary(u=>u.Id,u=>u.Roles.FirstOrDefault()??string.Empty);}
+private async Task CambiarRol(string id,string rol){if(string.IsNullOrWhiteSpace(rol))return;actualizando=true;try{await Api.CambiarRolAsync(id,rol);await Recargar();mensaje="Rol actualizado correctamente.";esError=false;}catch(Exception ex){await Recargar();mensaje=ex.Message;esError=true;}finally{actualizando=false;}}
 private async Task Crear(){try{await Api.CrearUsuarioAsync(nuevo);nuevo=new();usuarios=(await Api.UsuariosAsync()).ToList();mensaje="Usuario creado correctamente.";esError=false;}catch(Exception ex){mensaje=ex.Message;esError=true;}}
 }
