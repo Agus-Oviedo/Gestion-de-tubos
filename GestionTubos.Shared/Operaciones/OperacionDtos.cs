@@ -32,9 +32,33 @@ public sealed class RecepcionGuardarDto
     [Range(1, 4)] public int EstadoContenido { get; set; } = 2;
     [Range(1, int.MaxValue)] public int UbicacionDestinoId { get; set; }
     public bool RequiereInspeccion { get; set; }
+    [StringLength(150)] public string? PersonaEntrega { get; set; }
+    [StringLength(20)] public string? DniEntrega { get; set; }
     [StringLength(1000)] public string? Observaciones { get; set; }
 }
-public sealed record OperacionDto(long Id, string Numero, string Tipo, int ClienteId, string Cliente, int CilindroId, string CodigoCilindro, DateTime FechaHoraUtc, string Estado, DateOnly? FechaLimite, DateTime? FechaDevolucionUtc, string? PersonaRecibe, string? Observaciones);
+public sealed record OperacionDto(long Id, string Numero, string Tipo, int ClienteId, string Cliente, int CilindroId, string CodigoCilindro, DateTime FechaHoraUtc, string Estado, DateOnly? FechaLimite, DateTime? FechaDevolucionUtc, string? PersonaRecibe, string? Observaciones, string? NumeroRemitoDevolucion = null, string? NumeroRemitoEntrega = null, long? RemitoEntregaId = null);
+
+public sealed class DevolucionLoteCrearDto
+{
+    [Range(1,long.MaxValue)] public long RemitoEntregaId { get; set; }
+    [MinLength(1,ErrorMessage="Seleccioná al menos un tubo.")] public List<long> OperacionIds { get; set; }=[];
+    [Range(1,4)] public int EstadoFisico { get; set; }=1;
+    [Range(1,4)] public int EstadoContenido { get; set; }=2;
+    [Range(1,int.MaxValue)] public int UbicacionDestinoId { get; set; }
+    public bool RequiereInspeccion { get; set; }
+    [StringLength(1000)] public string? Observaciones { get; set; }
+}
+public sealed class DevolucionLoteFirmarDto
+{
+    [Required,StringLength(150)] public string PersonaEntrega { get; set; }=string.Empty;
+    [Required,StringLength(20)] public string DniEntrega { get; set; }=string.Empty;
+    [StringLength(400000)] public string FirmaDataUrl { get; set; }=string.Empty;
+}
+public sealed record DevolucionLoteDetalleDto(long OperacionId,int TuboId,string CodigoCilindro,string Gas,string Capacidad);
+public sealed record DevolucionLoteDto(long Id,string Numero,long RemitoEntregaId,string NumeroRemitoEntrega,int ClienteId,string Cliente,DateTime FechaCreacionUtc,DateTime? FechaConfirmacionUtc,string Estado,string? PersonaEntrega,string? DniEntrega,string? FirmaDataUrl,string? Observaciones,IReadOnlyList<DevolucionLoteDetalleDto> Tubos);
+
+public sealed record RemitoHistorialDto(long Id, string Tipo, string Numero, DateTime FechaUtc, string Estado, int ClienteId, string Cliente, long? PedidoId, string? NumeroPedido, long? OperacionId, string Usuario, string? Persona, string? Documento, string? Observaciones, IReadOnlyList<RemitoTuboDto> Tubos);
+public sealed record RemitoTuboDto(int TuboId, string CodigoInterno, string Gas, string Capacidad);
 
 public sealed record DashboardDto(int InventarioPropioTotal,int PropiosEnPlanta,int PropiosEnClientes,int CilindrosClientesEnPlanta,int EnCarga,int EnReparto,int PendientesInspeccion,int PruebasVencidas,int PruebasProximas,int OperacionesAbiertas,IReadOnlyList<MovimientoDto>UltimosMovimientos);
 

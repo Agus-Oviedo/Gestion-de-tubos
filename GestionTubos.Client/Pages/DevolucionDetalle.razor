@@ -1,0 +1,36 @@
+@page "/devoluciones/{Id:long}"
+@attribute [Authorize]
+@inject OperacionApiService Api
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ClienteApiService ClienteApi
+
+<PageTitle>Remito de devolución</PageTitle>
+@if(cargando){<p>Cargando...</p>}
+else if(remito is null){<div class="alert alert-warning">No se encontró el remito de devolución.</div>}
+else{
+ <div class="remito-actions mb-3"><button class="btn btn-outline-secondary me-2" @onclick="Volver">Volver al historial</button><button class="btn btn-success" @onclick="DescargarYEnviar" disabled="@descargando">@(descargando?"Preparando...":"Descargar PDF y enviar por WhatsApp")</button><button class="btn btn-outline-primary ms-2" @onclick="Imprimir">Imprimir</button></div>
+ <div class="alert alert-info remito-share-help"><strong>Al continuar:</strong> se descargará el PDF y se abrirá WhatsApp. Adjuntá allí el archivo descargado.</div>
+ @if(!string.IsNullOrWhiteSpace(mensaje)){<div class="alert alert-danger">@mensaje</div>}
+ <article class="remito-document">
+  <header class="remito-header"><img src="oxigeno-norte-logo.png" alt="Oxígeno Norte"/><div><h1>DEVOLUCIÓN</h1><strong>@remito.Numero</strong><div>Fecha: @((remito.FechaConfirmacionUtc??remito.FechaCreacionUtc).EnArgentina().ToString("dd/MM/yyyy HH:mm"))</div></div></header>
+  <section class="remito-company"><div><strong>OXÍGENO NORTE</strong><br/>Santa Rosa, La Pampa</div><div><strong>Remito original:</strong> @remito.NumeroRemitoEntrega<br/><strong>Tipo:</strong> Devolución<br/><strong>Estado:</strong> @remito.Estado<br/><strong>Recibido por:</strong> @remito.PersonaEntrega</div></section>
+  <section class="remito-client"><span>CLIENTE</span><h2>@remito.Cliente</h2><div>@DocumentoCliente()</div></section>
+  <table class="remito-table"><colgroup><col style="width:60%"/><col style="width:20%"/><col style="width:20%"/></colgroup><thead><tr><th>Código del cilindro</th><th>Gas</th><th>Capacidad</th></tr></thead><tbody>@foreach(var t in remito.Tubos){<tr><td>@t.CodigoCilindro</td><td>@t.Gas</td><td>@t.Capacidad</td></tr>}</tbody><tfoot><tr><td colspan="2"><strong>Total de cilindros devueltos</strong></td><td><strong>@remito.Tubos.Count</strong></td></tr></tfoot></table>
+  @if(!string.IsNullOrWhiteSpace(remito.Observaciones)){<section class="remito-observations"><strong>Observaciones:</strong><p>@remito.Observaciones</p></section>}
+  <section class="remito-electronic-signature"><div>@if(!string.IsNullOrWhiteSpace(remito.FirmaDataUrl)){<img src="@remito.FirmaDataUrl" alt="Firma electrónica de @remito.PersonaEntrega"/>}</div><div><strong>@remito.PersonaEntrega</strong><br/>DNI @remito.DniEntrega<br/><small>Devolución confirmada el @((remito.FechaConfirmacionUtc??remito.FechaCreacionUtc).EnArgentina().ToString("dd/MM/yyyy HH:mm"))</small></div></section>
+  <footer>Documento interno generado por el Sistema de Gestión de Cilindros · @remito.Numero</footer>
+ </article>
+}
+@code{
+ [Parameter]public long Id{get;set;}private bool cargando=true;private bool descargando;private DevolucionLoteDto?remito;private ClienteDto?cliente;private string?mensaje;
+ protected override async Task OnParametersSetAsync(){cargando=true;remito=await Api.ObtenerDevolucionLote(Id);cliente=remito is null?null:await ClienteApi.ObtenerPorIdAsync(remito.ClienteId);cargando=false;}
+ private void Volver()=>Navigation.NavigateTo("remitos");
+ private async Task GuardarPdf(){try{descargando=true;var bytes=await Api.DescargarDevolucionPdf(Id);await JS.InvokeVoidAsync("descargarArchivoBase64",NombreArchivo()+".pdf","application/pdf",Convert.ToBase64String(bytes));}catch(Exception ex){mensaje=ex.Message;}finally{descargando=false;}}
+ private Task Imprimir()=>JS.InvokeVoidAsync("print").AsTask();
+ private string NombreArchivo()=> $"{NombreCliente()}_{remito?.Numero??"devolucion"}";
+ private async Task EnviarWhatsApp(){if(remito is null)return;var destino=TelefonoWhatsApp.Destino(cliente?.Telefono);if(string.IsNullOrWhiteSpace(destino)){mensaje="El cliente no tiene un teléfono cargado para WhatsApp.";return;}mensaje=null;var nombre=NombreCliente();var fecha=(remito.FechaConfirmacionUtc??remito.FechaCreacionUtc).EnArgentina().ToString("dd/MM/yyyy");var texto=$"Hola, {nombre}.\n\nOxígeno Norte le envía el comprobante de devolución {remito.Numero}, correspondiente al remito de entrega {remito.NumeroRemitoEntrega}.\n\nCilindros devueltos: {remito.Tubos.Count}\nFecha: {fecha}\n\nAdjuntamos el remito firmado para su registro.\nMuchas gracias.";await JS.InvokeVoidAsync("abrirWhatsApp",destino,texto);}
+ private async Task DescargarYEnviar(){if(remito is null)return;var destino=TelefonoWhatsApp.Destino(cliente?.Telefono);if(string.IsNullOrWhiteSpace(destino)){mensaje="El cliente no tiene un teléfono cargado para WhatsApp.";return;}try{descargando=true;mensaje=null;await JS.InvokeVoidAsync("prepararWhatsApp");var bytes=await Api.DescargarDevolucionPdf(Id);await JS.InvokeVoidAsync("descargarArchivoBase64",NombreArchivo()+".pdf","application/pdf",Convert.ToBase64String(bytes));var nombre=NombreCliente();var fecha=(remito.FechaConfirmacionUtc??remito.FechaCreacionUtc).EnArgentina().ToString("dd/MM/yyyy");var texto=$"Hola, {nombre}.\n\nOxígeno Norte le envía el comprobante de devolución {remito.Numero}, correspondiente al remito de entrega {remito.NumeroRemitoEntrega}.\n\nCilindros devueltos: {remito.Tubos.Count}\nFecha: {fecha}\n\nAdjuntamos el remito firmado para su registro.\nMuchas gracias.";await JS.InvokeVoidAsync("abrirWhatsApp",destino,texto);}catch(Exception ex){mensaje=ex.Message;}finally{descargando=false;}}
+ private string NombreCliente(){if(cliente?.Tipo==1)return string.Join(" ",new[]{cliente.Nombre,cliente.Apellido}.Where(x=>!string.IsNullOrWhiteSpace(x)));return cliente?.RazonSocial??remito?.Cliente??"cliente";}
+ private string DocumentoCliente()=>cliente?.Tipo==2?$"CUIT: {cliente.CuitCuil??"Sin registrar"}":$"DNI: {cliente?.Dni??"Sin registrar"}";
+}

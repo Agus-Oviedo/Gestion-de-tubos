@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
+PdfSharp.Fonts.GlobalFontSettings.UseWindowsFontsUnderWindows = true;
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -11,6 +13,7 @@ builder.Logging.AddConsole();
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddSingleton<GestionTubos.Api.Services.RemitoPdfGenerator>();
 builder.Services.AddInfrastructure(builder.Configuration);
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Falta Jwt:Key");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>

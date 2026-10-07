@@ -66,3 +66,42 @@ window.firmaRemito = (() => {
 
     return { inicializar, limpiar, obtener };
 })();
+
+let ventanaWhatsappPendiente = null;
+
+window.prepararWhatsApp = () => {
+    ventanaWhatsappPendiente = window.open('about:blank', 'whatsapp-remito');
+};
+
+window.abrirWhatsApp = (numero, mensaje) => {
+    const destino = String(numero || '').replace(/\D/g, '');
+    if (!destino) return;
+    const url = `https://wa.me/${destino}?text=${encodeURIComponent(mensaje || '')}`;
+    if (ventanaWhatsappPendiente && !ventanaWhatsappPendiente.closed) {
+        ventanaWhatsappPendiente.location.href = url;
+        ventanaWhatsappPendiente = null;
+    } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+};
+
+window.guardarRemitoPdf = (nombreArchivo) => {
+    const tituloAnterior = document.title;
+    document.title = String(nombreArchivo || 'remito').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const restaurar = () => {
+        document.title = tituloAnterior;
+        window.removeEventListener('afterprint', restaurar);
+    };
+    window.addEventListener('afterprint', restaurar);
+    window.print();
+    window.setTimeout(restaurar, 30000);
+};
+
+window.descargarArchivoBase64 = (nombreArchivo, tipo, base64) => {
+    const enlace = document.createElement('a');
+    enlace.href = `data:${tipo};base64,${base64}`;
+    enlace.download = nombreArchivo;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+};

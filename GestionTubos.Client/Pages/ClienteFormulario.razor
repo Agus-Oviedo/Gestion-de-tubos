@@ -40,7 +40,7 @@ else
                 <div class="col-md-4"><label class="form-label">CUIT</label><InputText class="form-control" @bind-Value="modelo.CuitCuil" /><ValidationMessage For="() => modelo.CuitCuil" /></div>
                 <div class="col-md-4"><label class="form-label">Responsable</label><InputText class="form-control" @bind-Value="modelo.Responsable" /></div>
             }
-            <div class="col-md-4"><label class="form-label">Teléfono</label><InputText class="form-control" @bind-Value="modelo.Telefono" /></div>
+            <div class="col-md-4"><label class="form-label">Teléfono</label><InputText class="form-control" placeholder="Ej.: 123456, 11 12345678 o +598..." @bind-Value="modelo.Telefono" /><small class="text-muted">Si es local, agregaremos +54 9 2954. Si incluye característica o país, la respetaremos.</small></div>
             <div class="col-md-4"><label class="form-label">Correo</label><InputText class="form-control" @bind-Value="modelo.Correo" /><ValidationMessage For="() => modelo.Correo" /></div>
             <div class="col-md-4">
                 <label class="form-label">Condición fiscal</label>

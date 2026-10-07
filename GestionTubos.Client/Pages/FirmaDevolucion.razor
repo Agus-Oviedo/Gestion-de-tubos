@@ -1,0 +1,19 @@
+@page "/devoluciones/{Id:long}/firma"
+@attribute [Authorize]
+@inject OperacionApiService Api
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+<PageTitle>Firmar devolución</PageTitle>
+@if(cargando){<p>Cargando...</p>}else if(remito is null){<div class="alert alert-warning">No se encontró el remito.</div>}else if(remito.Estado=="Confirmado"){<div class="alert alert-success">La devolución ya fue confirmada.</div><a class="btn btn-primary" href="remitos">Ir al historial</a>}else{
+<div class="mx-auto" style="max-width:850px"><button class="btn btn-outline-secondary mb-3" @onclick="Salir">← Salir y dejar pendiente</button><div class="text-center mb-4"><img src="oxigeno-norte-logo.png" style="max-width:150px"/><h1>Confirmar devolución</h1></div>
+@if(!string.IsNullOrWhiteSpace(error)){<div class="alert alert-danger">@error</div>}
+<div class="card card-body shadow-sm mb-4"><div class="d-flex justify-content-between"><strong>@remito.Numero</strong><span>Entrega @remito.NumeroRemitoEntrega</span></div><h2 class="h4 mt-3">@remito.Cliente</h2>@foreach(var t in remito.Tubos){<div class="border-top py-2"><strong>@t.CodigoCilindro</strong> · @t.Gas · @t.Capacidad</div>}</div>
+<EditForm Model="firma" OnValidSubmit="Confirmar"><DataAnnotationsValidator/><ValidationSummary/><div class="card card-body shadow-sm"><div class="row g-3"><div class="col-md-7"><label class="form-label">Aclaración / nombre</label><InputText class="form-control form-control-lg" @bind-Value="firma.PersonaEntrega"/></div><div class="col-md-5"><label class="form-label">DNI</label><InputText class="form-control form-control-lg" @bind-Value="firma.DniEntrega"/></div><div class="col-12"><div class="d-flex justify-content-between"><strong>Firma</strong><button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Limpiar</button></div><canvas id="firma-devolucion" class="firma w-100"></canvas></div></div><button class="btn btn-success btn-lg w-100 mt-4">Confirmar devolución</button></div></EditForm></div>}
+@code{
+ [Parameter]public long Id{get;set;}private bool cargando=true;private bool iniciar;private string?error;private DevolucionLoteDto?remito;private DevolucionLoteFirmarDto firma=new();
+ protected override async Task OnParametersSetAsync(){remito=await Api.ObtenerDevolucionLote(Id);cargando=false;iniciar=remito?.Estado=="Pendiente de firma";}
+ protected override async Task OnAfterRenderAsync(bool first){if(iniciar){iniciar=false;await JS.InvokeVoidAsync("firmaRemito.inicializar","firma-devolucion");}}
+ private Task Limpiar()=>JS.InvokeVoidAsync("firmaRemito.limpiar","firma-devolucion").AsTask();private void Salir()=>Navigation.NavigateTo("recepciones");
+ private async Task Confirmar(){try{firma.FirmaDataUrl=await JS.InvokeAsync<string>("firmaRemito.obtener","firma-devolucion");if(string.IsNullOrWhiteSpace(firma.FirmaDataUrl)){error="Firmá para confirmar la devolución.";return;}await Api.FirmarDevolucionLote(Id,firma);Navigation.NavigateTo($"/devoluciones/{Id}");}catch(Exception ex){error=ex.Message;}}
+}
+<style>.firma{display:block;height:300px;border:3px solid #198754;border-radius:.75rem;background:#fff;touch-action:none}</style>

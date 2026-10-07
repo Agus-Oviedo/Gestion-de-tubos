@@ -3,6 +3,7 @@ using GestionTubos.Domain.Entities;
 using GestionTubos.Domain.Enums;
 using GestionTubos.Infrastructure.Data;
 using GestionTubos.Shared.Clientes;
+using GestionTubos.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace GestionTubos.Infrastructure.Services;
@@ -11,7 +12,7 @@ public sealed class ClienteService(GestionTubosDbContext dbContext) : IClienteSe
 {
     public async Task<IReadOnlyList<ClienteDto>> ObtenerTodosAsync(string? buscar, CancellationToken cancellationToken)
     {
-        var query = dbContext.Clientes.AsNoTracking();
+        var query = dbContext.Clientes.AsNoTracking().Where(x => x.Activo);
         if (!string.IsNullOrWhiteSpace(buscar))
         {
             var texto = buscar.Trim();
@@ -68,7 +69,7 @@ public sealed class ClienteService(GestionTubosDbContext dbContext) : IClienteSe
     {
         if (!await dbContext.Clientes.AnyAsync(x => x.Id == clienteId, cancellationToken)) return null;
         return await dbContext.DireccionesCliente.AsNoTracking()
-            .Where(x => x.ClienteId == clienteId)
+            .Where(x => x.ClienteId == clienteId && x.Activa)
             .OrderByDescending(x => x.EsPrincipalEntrega).ThenByDescending(x => x.EsFiscal)
             .Select(x => new DireccionClienteDto(x.Id, x.Calle, x.Numero, x.Localidad, x.Provincia, x.EsFiscal, x.EsPrincipalEntrega))
             .ToListAsync(cancellationToken);
@@ -118,14 +119,14 @@ public sealed class ClienteService(GestionTubosDbContext dbContext) : IClienteSe
     private static void Copiar(ClienteGuardarDto dto, Cliente cliente)
     {
         cliente.Tipo = (TipoCliente)dto.Tipo;
-        cliente.Nombre = Limpiar(dto.Nombre);
-        cliente.Apellido = Limpiar(dto.Apellido);
-        cliente.RazonSocial = Limpiar(dto.RazonSocial);
-        cliente.NombreComercial = Limpiar(dto.NombreComercial);
-        cliente.Dni = Limpiar(dto.Dni);
+        cliente.Nombre = dto.Tipo == 1 ? Limpiar(dto.Nombre) : null;
+        cliente.Apellido = dto.Tipo == 1 ? Limpiar(dto.Apellido) : null;
+        cliente.RazonSocial = dto.Tipo == 2 ? Limpiar(dto.RazonSocial) : null;
+        cliente.NombreComercial = dto.Tipo == 2 ? Limpiar(dto.NombreComercial) : null;
+        cliente.Dni = dto.Tipo == 1 ? Limpiar(dto.Dni) : null;
         cliente.CuitCuil = Limpiar(dto.CuitCuil);
-        cliente.Responsable = Limpiar(dto.Responsable);
-        cliente.Telefono = Limpiar(dto.Telefono);
+        cliente.Responsable = dto.Tipo == 2 ? Limpiar(dto.Responsable) : null;
+        cliente.Telefono = TelefonoWhatsApp.Normalizar(dto.Telefono);
         cliente.Correo = Limpiar(dto.Correo);
         cliente.CondicionFiscal = (CondicionFiscal)dto.CondicionFiscal;
     }

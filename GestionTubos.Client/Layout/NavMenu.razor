@@ -13,13 +13,25 @@
             <nav class="flex-column">
                 <div class="menu-caption px-3">CONTROL DE STOCK</div>
                 <div class="nav-item px-3"><NavLink class="nav-link" href="" Match="NavLinkMatch.All"><span class="bi bi-house-door-fill-nav-menu"></span> Resumen</NavLink></div>
-                <div class="nav-item px-3"><NavLink class="nav-link" href="cilindros"><span class="bi bi-list-nested-nav-menu"></span> Stock de tubos</NavLink></div>
-                <AuthorizeView Roles="Superadministrador,Administrador" Context="altaRol">
-                    <div class="nav-item px-3"><NavLink class="nav-link" href="cilindros/nuevo"><span aria-hidden="true">＋</span> Cargar tubo</NavLink></div>
-                    <div class="nav-item px-3"><NavLink class="nav-link" href="usuarios"><span aria-hidden="true">👥</span> Usuarios</NavLink></div>
-                </AuthorizeView>
-                <AuthorizeView Roles="Superadministrador" Context="configuracionRol">
-                    <div class="nav-item px-3 mt-3"><NavLink class="nav-link" href="catalogos"><span aria-hidden="true">⚙</span> Datos del stock</NavLink></div>
+                <details class="configuration-menu px-3" open="@EnOperaciones" @onclick:stopPropagation>
+                    <summary><span class="configuration-icon" aria-hidden="true">↔</span> Operaciones</summary>
+                    <div class="nav-item"><NavLink class="nav-link" href="pedidos" @onclick="ToggleNavMenu"><span aria-hidden="true">📦</span> Entregas</NavLink></div>
+                    <div class="nav-item"><NavLink class="nav-link" href="recepciones" @onclick="ToggleNavMenu"><span aria-hidden="true">↩</span> Devoluciones</NavLink></div>
+                    <div class="nav-item"><NavLink class="nav-link" href="remitos" @onclick="ToggleNavMenu"><span aria-hidden="true">📄</span> Historial de remitos</NavLink></div>
+                </details>
+                <details class="configuration-menu px-3" open="@EnGestion" @onclick:stopPropagation>
+                    <summary><span class="configuration-icon" aria-hidden="true">▦</span> Gestión</summary>
+                    <div class="nav-item"><NavLink class="nav-link" href="cilindros" @onclick="ToggleNavMenu"><span class="bi bi-list-nested-nav-menu"></span> Tubos</NavLink></div>
+                    <div class="nav-item"><NavLink class="nav-link" href="clientes" @onclick="ToggleNavMenu"><span aria-hidden="true">👥</span> Clientes</NavLink></div>
+                </details>
+                <AuthorizeView Roles="Superadministrador,Administrador" Context="configuracionRol">
+                    <details class="configuration-menu px-3 mt-3" open="@EnConfiguracion" @onclick:stopPropagation>
+                        <summary><span class="configuration-icon" aria-hidden="true">⚙</span> Configuración</summary>
+                        <div class="nav-item"><NavLink class="nav-link" href="usuarios" @onclick="ToggleNavMenu"><span aria-hidden="true">👥</span> Usuarios</NavLink></div>
+                        <AuthorizeView Roles="Superadministrador" Context="datosStockRol">
+                            <div class="nav-item"><NavLink class="nav-link" href="catalogos" @onclick="ToggleNavMenu"><span aria-hidden="true">▦</span> Datos del stock</NavLink></div>
+                        </AuthorizeView>
+                    </details>
                 </AuthorizeView>
                 <div class="px-3 mt-4"><div class="text-white-50 small mb-2">@sesion.User.Identity?.Name</div><button class="btn btn-outline-light btn-sm w-100" @onclick="Salir">Cerrar sesión</button></div>
             </nav>
@@ -30,6 +42,9 @@
 @code {
     private bool collapseNavMenu = true;
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private bool EnGestion => Navigation.Uri.Contains("/cilindros", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/clientes", StringComparison.OrdinalIgnoreCase);
+    private bool EnOperaciones => Navigation.Uri.Contains("/pedidos", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/recepciones", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/remitos", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/devoluciones", StringComparison.OrdinalIgnoreCase);
+    private bool EnConfiguracion => Navigation.Uri.Contains("/usuarios", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/catalogos", StringComparison.OrdinalIgnoreCase);
     private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
     private async Task Salir() { await Auth.LogoutAsync(); Navigation.NavigateTo("login"); }
 }

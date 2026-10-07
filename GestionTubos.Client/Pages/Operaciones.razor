@@ -1,47 +1,20 @@
 @page "/recepciones"
 @page "/operaciones"
 @attribute [Authorize]
-@inject GestionTubos.Client.Services.OperacionApiService Api
-@inject GestionTubos.Client.Services.TuboApiService CilindrosApi
-@inject GestionTubos.Client.Services.ClienteApiService ClientesApi
-@inject GestionTubos.Client.Services.CatalogoApiService Catalogos
-
-<PageTitle>Recepciones e ingresos</PageTitle>
-<h1>Recepciones e ingresos</h1>
-<p class="text-muted">Usá <strong>Devolución</strong> cuando vuelve un cilindro entregado por un pedido. Usá <strong>Ingreso de cilindro del cliente</strong> cuando el cliente trae uno propio para carga, inspección, mantenimiento o prueba hidráulica.</p>
-
-@if (!string.IsNullOrWhiteSpace(mensaje)) { <div class="alert @(esError ? "alert-danger" : "alert-success")">@mensaje</div> }
-
-<div class="row g-4 mb-4">
- <div class="col-xl-6"><EditForm Model="recepcion" OnValidSubmit="Recibir" class="card card-body h-100 shadow-sm"><DataAnnotationsValidator/><ValidationSummary/>
-  <span class="badge bg-primary align-self-start mb-2">CILINDRO ENTREGADO</span><h2 class="h4">Recibir devolución</h2><p class="text-muted small">Seleccioná la entrega original. Al confirmar, esa operación se cierra.</p>
-  <label class="form-label">Entrega abierta</label><InputSelect class="form-select mb-3" @bind-Value="recepcion.OperacionId"><option value="0">Seleccionar</option>@foreach(var x in abiertas){<option value="@x.Id">@x.Numero · @x.CodigoCilindro · @x.Cliente</option>}</InputSelect>
-  <label class="form-label">Ubicación de ingreso</label><InputSelect class="form-select mb-3" @bind-Value="recepcion.UbicacionDestinoId"><option value="0">Seleccionar</option>@foreach(var x in ubicaciones){<option value="@x.Id">@x.Nombre</option>}</InputSelect>
-  <div class="row g-3"><div class="col-md-6"><label class="form-label">Estado físico</label><InputSelect class="form-select" @bind-Value="recepcion.EstadoFisico"><option value="1">Bueno</option><option value="2">Con observaciones</option><option value="3">Dañado</option><option value="4">Inutilizable</option></InputSelect></div><div class="col-md-6"><label class="form-label">Contenido</label><InputSelect class="form-select" @bind-Value="recepcion.EstadoContenido"><option value="1">Lleno</option><option value="2">Vacío</option><option value="3">Parcial</option><option value="4">Desconocido</option></InputSelect></div></div>
-  <label class="my-3"><InputCheckbox class="form-check-input me-2" @bind-Value="recepcion.RequiereInspeccion"/>Requiere inspección antes de quedar disponible</label><button class="btn btn-primary mt-auto">Confirmar devolución</button>
- </EditForm></div>
- <div class="col-xl-6"><EditForm Model="ingreso" OnValidSubmit="IngresarCilindroCliente" class="card card-body h-100 shadow-sm"><DataAnnotationsValidator/><ValidationSummary/>
-  <span class="badge bg-info text-dark align-self-start mb-2">CILINDRO PROPIO DEL CLIENTE</span><h2 class="h4">Ingresar para carga</h2><p class="text-muted small">El cilindro ingresa vacío y pasa directamente a la lista de Carga de cilindros, siempre asociado a su dueño.</p>
-  <div class="d-flex justify-content-between align-items-center"><label class="form-label">Cliente propietario</label><AuthorizeView Roles="Superadministrador,Administrador" Context="altaClienteRol"><a class="btn btn-sm btn-outline-primary mb-1" href="clientes/nuevo?volver=recepciones">+ Nuevo cliente</a></AuthorizeView></div><div class="mb-3"><ClienteBuscador Clientes="clientes" ClienteId="ingreso.ClienteId" ClienteIdChanged="CambiarClienteIngreso"/></div>
-  <div class="d-flex justify-content-between align-items-center"><label class="form-label">Cilindro del cliente</label>@if(ingreso.ClienteId>0){<AuthorizeView Roles="Superadministrador,Administrador" Context="altaCilindroRol"><a class="btn btn-sm btn-outline-primary mb-1" href="@($"cilindros/nuevo?clienteId={ingreso.ClienteId}&volver=recepciones")">+ Nuevo cilindro</a></AuthorizeView>}</div><InputSelect class="form-select mb-3" @bind-Value="ingreso.CilindroId"><option value="0">Seleccionar</option>@foreach(var x in CilindrosDelCliente){<option value="@x.Id">@x.CodigoInterno · @x.Gas · @x.Capacidad · @NombreDisponibilidad(x.EstadoDisponibilidad)</option>}</InputSelect>
-  <div class="row g-3 mb-3"><div class="col-md-6"><label class="form-label">Motivo del ingreso</label><InputSelect class="form-select" @bind-Value="MotivoIngreso"><option value="Carga">Carga (habitual)</option><option value="Inspeccion">Inspección</option><option value="Mantenimiento">Mantenimiento</option><option value="PruebaHidraulica">Prueba hidráulica</option></InputSelect></div><div class="col-md-6"><label class="form-label">Ubicación de ingreso</label><InputSelect class="form-select" @bind-Value="ingreso.UbicacionDestinoId"><option value="0">Seleccionar</option>@foreach(var x in ubicaciones){<option value="@x.Id">@x.Nombre</option>}</InputSelect></div><div class="col-md-6"><label class="form-label">Estado físico</label><InputSelect class="form-select" @bind-Value="ingreso.EstadoFisico"><option value="1">Bueno</option><option value="2">Con observaciones</option><option value="3">Dañado</option><option value="4">Inutilizable</option></InputSelect></div>@if(ingreso.Motivo=="Carga"){<div class="col-md-6"><label class="form-label">Contenido</label><div class="form-control bg-light">Vacío · esperando carga</div></div>}else{<div class="col-md-6"><label class="form-label">Contenido</label><InputSelect class="form-select" @bind-Value="ingreso.EstadoContenido"><option value="1">Lleno</option><option value="2">Vacío</option><option value="3">Parcial</option><option value="4">Desconocido</option></InputSelect></div>}</div>
-  <label class="form-label">Observaciones</label><InputText class="form-control mb-3" @bind-Value="ingreso.Observaciones"/><button class="btn btn-primary mt-auto">@(ingreso.Motivo=="Carga"?"Ingresar vacío para carga":"Registrar ingreso excepcional")</button>
- </EditForm></div>
-</div>
-
-<div class="card shadow-sm"><div class="card-header bg-white"><h2 class="h5 mb-0">Entregas pendientes de devolución</h2></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th>Cilindro</th><th>Modalidad</th></tr></thead><tbody>@if(abiertas.Count==0){<tr><td colspan="5" class="text-center text-muted py-4">No hay entregas abiertas.</td></tr>}@foreach(var x in abiertas){<tr><td><strong>@x.Numero</strong></td><td>@x.FechaHoraUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm")</td><td>@x.Cliente</td><td>@x.CodigoCilindro</td><td>@x.Tipo</td></tr>}</tbody></table></div></div>
-
-@code {
- [SupplyParameterFromQuery(Name="clienteId")]public int?ClienteIdInicial{get;set;} [SupplyParameterFromQuery(Name="cilindroId")]public int?CilindroIdInicial{get;set;}
- private RecepcionGuardarDto recepcion=new(); private IngresoCilindroClienteDto ingreso=new(); private List<ClienteDto>clientes=[]; private List<TuboDto>cilindros=[]; private List<UbicacionDto>ubicaciones=[]; private List<OperacionDto>abiertas=[]; private string?mensaje; private bool esError;
- private List<TuboDto>CilindrosDelCliente=>ingreso.ClienteId==0?[]:cilindros.Where(x=>x.TipoPropietario==2&&x.ClientePropietarioId==ingreso.ClienteId).ToList();
- private static string NombreDisponibilidad(int estado)=>estado switch{1=>"Disponible en planta",2=>"Reservado",3=>"En reparto",4=>"Con su propietario · fuera de planta",5=>"En carga",6=>"Pendiente de inspección",7=>"En mantenimiento",8=>"En prueba hidráulica",9=>"Fuera de servicio",10=>"Extraviado",_=>"Desconocido"};
- private int ClienteIngreso{get=>ingreso.ClienteId;set{ingreso.ClienteId=value;if(!CilindrosDelCliente.Any(x=>x.Id==ingreso.CilindroId))ingreso.CilindroId=0;}}
- private Task CambiarClienteIngreso(int?id){ClienteIngreso=id??0;return Task.CompletedTask;}
- private string MotivoIngreso{get=>ingreso.Motivo;set{ingreso.Motivo=value;if(value=="Carga")ingreso.EstadoContenido=2;}}
- protected override async Task OnInitializedAsync(){clientes=(await ClientesApi.ObtenerTodosAsync()).ToList();ubicaciones=(await Catalogos.UbicacionesAsync()).Where(x=>x.EsInterna).ToList();await Cargar();if(ClienteIdInicial.HasValue&&clientes.Any(x=>x.Id==ClienteIdInicial)){ingreso.ClienteId=ClienteIdInicial.Value;if(CilindroIdInicial.HasValue&&CilindrosDelCliente.Any(x=>x.Id==CilindroIdInicial))ingreso.CilindroId=CilindroIdInicial.Value;}}
- private async Task Cargar(){cilindros=(await CilindrosApi.Todos()).ToList();abiertas=await Api.Operaciones(true);}
- private Task Recibir()=>Ejecutar(async()=>{await Api.Recibir(recepcion);recepcion=new();mensaje="Devolución registrada y entrega cerrada.";});
- private Task IngresarCilindroCliente()=>Ejecutar(async()=>{var paraCarga=ingreso.Motivo=="Carga";await Api.IngresarCilindroCliente(ingreso);ingreso=new();mensaje=paraCarga?"Cilindro ingresado vacío y enviado directamente a la fila de carga.":"Ingreso excepcional registrado correctamente.";});
- private async Task Ejecutar(Func<Task>accion){try{esError=false;mensaje=null;await accion();await Cargar();}catch(Exception ex){esError=true;mensaje=ex.Message;}}
+@inject OperacionApiService Api
+@inject NavigationManager Navigation
+<PageTitle>Devoluciones pendientes</PageTitle>
+<h1>Devoluciones pendientes</h1>
+<p class="text-muted">Remitos entregados que todavía tienen tubos en poder del cliente.</p>
+<div class="card shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Remito</th><th>Fecha</th><th>Cliente</th><th>Tubos pendientes</th><th></th></tr></thead><tbody>
+@if(cargando){<tr><td colspan="5" class="text-center text-muted py-4">Cargando...</td></tr>}
+else if(grupos.Count==0){<tr><td colspan="5" class="text-center text-muted py-5">No hay remitos pendientes de devolución.</td></tr>}
+@foreach(var g in grupos){<tr><td><strong>@g.Numero</strong></td><td>@g.Fecha.EnArgentina().ToString("dd/MM/yyyy HH:mm")</td><td>@g.Cliente</td><td><span class="badge bg-warning text-dark">@g.Operaciones.Count</span></td><td class="text-end">@if(g.PedidoId.HasValue){<button class="btn btn-outline-primary btn-sm me-2" @onclick="()=>VerRemito(g.PedidoId.Value)">Ver remito</button>}<button class="btn btn-primary btn-sm" @onclick="()=>Abrir(g.RemitoId)">Registrar devolución</button></td></tr>}
+</tbody></table></div></div>
+@code{
+ private bool cargando=true;private List<Grupo>grupos=[];
+ protected override async Task OnInitializedAsync(){var tareaAbiertas=Api.Operaciones(true);var tareaRemitos=Api.Remitos(tipo:"Entrega");await Task.WhenAll(tareaAbiertas,tareaRemitos);var abiertas=await tareaAbiertas;var pedidos=(await tareaRemitos).Where(x=>x.PedidoId.HasValue).GroupBy(x=>x.Numero).ToDictionary(x=>x.Key,x=>x.First().PedidoId);grupos=abiertas.Where(x=>x.RemitoEntregaId.HasValue).GroupBy(x=>new{x.RemitoEntregaId,x.NumeroRemitoEntrega,x.Cliente}).Select(x=>{var numero=x.Key.NumeroRemitoEntrega??"Remito";pedidos.TryGetValue(numero,out var pedidoId);return new Grupo(x.Key.RemitoEntregaId!.Value,pedidoId,numero,x.Key.Cliente,x.Min(o=>o.FechaHoraUtc),x.OrderBy(o=>o.CodigoCilindro).ToList());}).OrderByDescending(x=>x.Fecha).ToList();cargando=false;}
+ private void Abrir(long id)=>Navigation.NavigateTo($"devoluciones/remito/{id}");
+ private void VerRemito(long pedidoId)=>Navigation.NavigateTo($"remitos/{pedidoId}?volver=recepciones");
+ private sealed record Grupo(long RemitoId,long? PedidoId,string Numero,string Cliente,DateTime Fecha,List<OperacionDto>Operaciones);
 }

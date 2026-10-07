@@ -1,0 +1,34 @@
+@page "/remitos"
+@attribute [Authorize]
+@inject GestionTubos.Client.Services.OperacionApiService Api
+@inject GestionTubos.Client.Services.ClienteApiService ClientesApi
+
+<PageTitle>Historial de remitos</PageTitle>
+<h1>Historial de remitos</h1>
+<p class="text-muted">Entregas y devoluciones vinculadas con cada cliente y sus tubos.</p>
+
+<div class="card card-body shadow-sm mb-4">
+ <div class="row g-3 align-items-end">
+  <div class="col-lg-5"><label class="form-label">Cliente</label><ClienteBuscador Clientes="clientes" ClienteId="clienteId" ClienteIdChanged="CambiarCliente" /></div>
+  <div class="col-lg-3"><label class="form-label">Tipo</label><select class="form-select" @bind="tipo"><option value="">Todos</option><option value="Entrega">Entrega</option><option value="Devolución">Devolución</option></select></div>
+  <div class="col-lg-2"><button class="btn btn-primary w-100" @onclick="Cargar">Buscar</button></div>
+  <div class="col-lg-2"><button class="btn btn-outline-secondary w-100" @onclick="Limpiar">Limpiar</button></div>
+ </div>
+</div>
+
+@if(cargando){<p>Cargando remitos...</p>}
+else if(!string.IsNullOrWhiteSpace(error)){<div class="alert alert-danger">@error</div>}
+else{
+ <div class="card shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Remito</th><th>Tipo</th><th>Fecha</th><th>Cliente</th><th>Tubos</th><th>Persona</th><th>Estado</th><th></th></tr></thead><tbody>
+ @if(remitos.Count==0){<tr><td colspan="8" class="text-center text-muted py-4">No hay remitos para los filtros seleccionados.</td></tr>}
+ @foreach(var r in remitos){<tr><td><strong>@r.Numero</strong>@if(!string.IsNullOrWhiteSpace(r.NumeroPedido)){<div class="small text-muted">@r.NumeroPedido</div>}</td><td><span class="badge @(r.Tipo=="Entrega"?"bg-primary":"bg-success")">@r.Tipo</span></td><td>@r.FechaUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm")</td><td>@r.Cliente</td><td>@foreach(var t in r.Tubos){<div><strong>@t.CodigoInterno</strong> · @t.Gas · @t.Capacidad</div>}</td><td>@(r.Persona??"—")@if(!string.IsNullOrWhiteSpace(r.Documento)){<div class="small text-muted">DNI @r.Documento</div>}</td><td>@r.Estado</td><td>@if(r.Tipo=="Entrega"&&r.PedidoId.HasValue){<a class="btn btn-sm btn-outline-primary" href="@($"remitos/{r.PedidoId}")">Ver</a>}else if(r.Tipo=="Devolución"&&r.OperacionId is null){<a class="btn btn-sm btn-outline-success" href="@($"devoluciones/{r.Id}")">Ver</a>}</td></tr>}
+ </tbody></table></div></div>
+}
+
+@code{
+ private List<ClienteDto> clientes=[]; private List<RemitoHistorialDto> remitos=[]; private int? clienteId; private string tipo=""; private bool cargando; private string? error;
+ protected override async Task OnInitializedAsync(){clientes=(await ClientesApi.ObtenerTodosAsync()).ToList();await Cargar();}
+ private Task CambiarCliente(int? id){clienteId=id;return Task.CompletedTask;}
+ private async Task Cargar(){try{cargando=true;error=null;remitos=await Api.Remitos(clienteId,null,tipo);}catch(Exception ex){error=ex.Message;}finally{cargando=false;}}
+ private async Task Limpiar(){clienteId=null;tipo="";await Cargar();}
+}

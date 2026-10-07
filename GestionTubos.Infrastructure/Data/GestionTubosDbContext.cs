@@ -17,6 +17,9 @@ public sealed class GestionTubosDbContext(DbContextOptions<GestionTubosDbContext
     public DbSet<MovimientoCilindro> MovimientosCilindro => Set<MovimientoCilindro>();
     public DbSet<PruebaHidraulica> PruebasHidraulicas => Set<PruebaHidraulica>();
     public DbSet<OperacionCilindro> OperacionesCilindro => Set<OperacionCilindro>();
+    public DbSet<RemitoDevolucion> RemitosDevolucion => Set<RemitoDevolucion>();
+    public DbSet<DevolucionLote> DevolucionesLote => Set<DevolucionLote>();
+    public DbSet<DevolucionLoteDetalle> DevolucionesLoteDetalle => Set<DevolucionLoteDetalle>();
     public DbSet<Pedido> Pedidos => Set<Pedido>();
     public DbSet<PedidoDetalle> PedidoDetalles => Set<PedidoDetalle>();
     public DbSet<Remito> Remitos => Set<Remito>();
