@@ -64,6 +64,7 @@ await GestionTubos.Api.Services.ServerUpgrade.EjecutarAsync(app,"clientes-carga-
 using(var planchadasScope=app.Services.CreateScope())await planchadasScope.ServiceProvider.GetRequiredService<GestionTubos.Infrastructure.Services.PlanchadaService>().InicializarAsync();
 using(var auditoriaScope=app.Services.CreateScope())await auditoriaScope.ServiceProvider.GetRequiredService<GestionTubos.Application.Interfaces.IPedidoService>().RegistrarEstadosInicialesAsync(default);
 await GestionTubos.Api.Services.CorregirContenidoInicial.EjecutarAsync(app);
+await GestionTubos.Api.Services.RegularizarTubosClientes.EjecutarAsync(app);
 
 await IdentitySeeder.SeedAsync(app.Services,
     builder.Configuration["UsuarioInicial:Correo"] ?? "admin@oxigenonorte.local",
