@@ -1,0 +1,17 @@
+@inject PedidoApiService Api
+<div class="remito-no-print">
+ @if(PedidoId is null){<div class="d-flex flex-wrap gap-2 mb-3"><input class="form-control" style="max-width:420px" type="search" placeholder="Buscar por remito, usuario, acción o motivo" @bind="buscar"/><button class="btn btn-primary" @onclick="Buscar">Buscar</button></div>}
+ @if(error is not null){<div class="alert alert-danger">@error</div>}
+ @if(cargando){<p>Cargando auditoría...</p>}
+ else if(registros.Count==0){<p class="text-muted">No hay cambios registrados para esta búsqueda.</p>}
+ @foreach(var r in registros){<details class="card mb-3"><summary class="card-header p-3"><strong>@r.NumeroRemito · @r.Accion</strong><span class="d-block small">@r.FechaUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm:ss") · @r.Usuario · versión @r.Version</span></summary><div class="card-body"><p><strong>Motivo:</strong> @r.Motivo</p><small class="text-muted d-block mb-3">Identificador del usuario: @r.UsuarioId</small>
+ <div class="table-responsive"><table class="table table-bordered mb-0" data-mobile-cards="true"><thead><tr><th>Dato</th><th>Anterior</th><th>Nuevo</th></tr></thead><tbody>@foreach(var c in r.Cambios){<tr><td><strong>@c.Campo</strong></td><td style="white-space:pre-wrap;overflow-wrap:anywhere;max-width:350px">@(c.Antes??"—")</td><td style="white-space:pre-wrap;overflow-wrap:anywhere;max-width:350px">@(c.Despues??"—")</td></tr>}</tbody></table></div></div></details>}
+ @if(hayMas){<button class="btn btn-outline-primary" disabled="@cargando" @onclick="Mas">Cargar cambios anteriores</button>}
+</div>
+@code{
+ [Parameter]public long?PedidoId{get;set;}[Parameter]public int Version{get;set;}
+ private List<AuditoriaRemitoDto>registros=[];private bool cargando,hayMas;private string buscar="";private string?error;
+ protected override Task OnParametersSetAsync()=>Cargar(false);
+ private Task Buscar()=>Cargar(false);private Task Mas()=>Cargar(true);
+ private async Task Cargar(bool mas){try{cargando=true;error=null;var p=await Api.Auditoria(PedidoId,buscar,mas?registros.LastOrDefault()?.Id:null);registros=mas?registros.Concat(p.Registros).ToList():p.Registros.ToList();hayMas=p.HayMas;}catch(Exception e){error=e.Message;}finally{cargando=false;}}
+}

@@ -13,7 +13,10 @@ builder.Logging.AddConsole();
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<GestionTubos.Application.Interfaces.IUsuarioActual,GestionTubos.Api.Services.UsuarioActual>();
 builder.Services.AddSingleton<GestionTubos.Api.Services.RemitoPdfGenerator>();
+builder.Services.AddSingleton<GestionTubos.Api.Services.InventarioPdfGenerator>();
 builder.Services.AddInfrastructure(builder.Configuration);
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Falta Jwt:Key");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
@@ -53,6 +56,13 @@ app.MapGet("/api/estado", () => Results.Ok(new
     aplicacion = "Control de Stock de Tubos",
     estado = "activa"
 }));
+
+await GestionTubos.Api.Services.ServerUpgrade.EjecutarAsync(app);
+await GestionTubos.Api.Services.ServerUpgrade.EjecutarAsync(app,"auditoria-20261015");
+await GestionTubos.Api.Services.ServerUpgrade.EjecutarAsync(app,"planchadas-20261015");
+using(var planchadasScope=app.Services.CreateScope())await planchadasScope.ServiceProvider.GetRequiredService<GestionTubos.Infrastructure.Services.PlanchadaService>().InicializarAsync();
+using(var auditoriaScope=app.Services.CreateScope())await auditoriaScope.ServiceProvider.GetRequiredService<GestionTubos.Application.Interfaces.IPedidoService>().RegistrarEstadosInicialesAsync(default);
+await GestionTubos.Api.Services.CorregirContenidoInicial.EjecutarAsync(app);
 
 await IdentitySeeder.SeedAsync(app.Services,
     builder.Configuration["UsuarioInicial:Correo"] ?? "admin@oxigenonorte.local",

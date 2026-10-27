@@ -1,10 +1,22 @@
+@inject NavigationManager Navigation
+
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
+            @if (EsPublica(routeData.PageType))
+            {
+                <RouteView RouteData="@routeData" DefaultLayout="@typeof(LoginLayout)" />
+            }
+            else
+            {
+            <AuthorizeView Context="sesion">
+                <Authorizing><p class="p-4">Verificando sesión...</p></Authorizing>
+                <NotAuthorized><RedirectToLogin /></NotAuthorized>
+                <Authorized>
             @if (EsRutaDeStock(routeData.PageType))
             {
-                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                    <NotAuthorized><RedirectToLogin /></NotAuthorized>
+                <AuthorizeRouteView @key="ClaveRuta(routeData)" RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                    <NotAuthorized><p>No tenés permiso para acceder a este apartado.</p></NotAuthorized>
                 </AuthorizeRouteView>
                 <FocusOnNavigate RouteData="@routeData" Selector="h1" />
             }
@@ -12,17 +24,27 @@
             {
                 <RedirectToStock />
             }
+                </Authorized>
+            </AuthorizeView>
+            }
         </Found>
-        <NotFound><LayoutView Layout="@typeof(MainLayout)"><p>Página no encontrada.</p></LayoutView></NotFound>
+        <NotFound><AuthorizeView><NotAuthorized><RedirectToLogin /></NotAuthorized><Authorized><LayoutView Layout="@typeof(MainLayout)"><p>Página no encontrada.</p></LayoutView></Authorized></AuthorizeView></NotFound>
     </Router>
 </CascadingAuthenticationState>
 
 @code {
+    private static bool EsPublica(Type pagina) => pagina == typeof(Pages.Login) || pagina == typeof(Pages.Registro);
+    // Estos apartados comparten componente y rutas sin parámetros: recrear la vista al navegar.
+    private string ClaveRuta(RouteData ruta) => ruta.PageType == typeof(Pages.StockVacios) ? Navigation.Uri : ruta.PageType.FullName!;
+
     private static bool EsRutaDeStock(Type pagina) => pagina == typeof(Pages.Login)
         || pagina == typeof(Pages.Registro)
         || pagina == typeof(Pages.Home)
+        || pagina == typeof(Pages.Rampas)
         || pagina == typeof(Pages.Tubos)
         || pagina == typeof(Pages.TuboFormulario)
+        || pagina == typeof(Pages.StockVacios)
+        || pagina == typeof(Pages.EstadisticasClientes)
         || pagina == typeof(Pages.Clientes)
         || pagina == typeof(Pages.ClienteFormulario)
         || pagina == typeof(Pages.DireccionesCliente)
@@ -35,6 +57,7 @@
         || pagina == typeof(Pages.DevolucionDetalle)
         || pagina == typeof(Pages.Operaciones)
         || pagina == typeof(Pages.Remitos)
+        || pagina == typeof(Pages.AuditoriaRemitos)
         || pagina == typeof(Pages.Usuarios)
         || pagina == typeof(Pages.Catalogos);
 }

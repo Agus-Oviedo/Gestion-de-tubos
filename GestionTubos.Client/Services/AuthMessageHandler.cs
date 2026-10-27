@@ -8,6 +8,9 @@ public sealed class AuthMessageHandler(LocalAuthStateProvider auth) : Delegating
     {
         var token = await auth.GetTokenAsync();
         if (!string.IsNullOrWhiteSpace(token)) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        return await base.SendAsync(request, cancellationToken);
+        var response = await base.SendAsync(request, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            await auth.CerrarSesionAsync();
+        return response;
     }
 }

@@ -7,6 +7,7 @@ namespace GestionTubos.Client.Services;
 public sealed class TuboApiService(HttpClient http)
 {
     private const string Ruta = "api/cilindros";
+    public async Task<byte[]> ListadoPdf(ListadoTubosPdfDto dto){var response=await http.PostAsJsonAsync($"{Ruta}/listado/pdf",dto);await Verificar(response);return await response.Content.ReadAsByteArrayAsync();}
     public async Task UbicarPropios(TubosUbicarDto dto) => await Verificar(await http.PostAsJsonAsync($"{Ruta}/ubicacion", dto));
     public async Task<List<TuboDto>> Todos(string? buscar = null) =>
         await http.GetFromJsonAsync<List<TuboDto>>(string.IsNullOrWhiteSpace(buscar) ? Ruta : $"{Ruta}?buscar={Uri.EscapeDataString(buscar)}") ?? [];

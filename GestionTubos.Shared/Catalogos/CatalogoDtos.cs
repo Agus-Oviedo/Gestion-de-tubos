@@ -27,4 +27,4 @@ public sealed class UbicacionGuardarDto
     [StringLength(300)] public string? Descripcion { get; set; }
     public bool EsInterna { get; set; } = true;
 }
-public sealed record UbicacionDto(int Id, string Nombre, string? Descripcion, bool EsInterna);
+public sealed record UbicacionDto(int Id, string Nombre, string? Descripcion, bool EsInterna,string?GasBateria=null);

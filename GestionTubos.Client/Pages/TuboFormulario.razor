@@ -57,6 +57,14 @@
                 <label class="form-label">Estado</label>
                 <InputSelect class="form-select" @bind-Value="modelo.EstadoDisponibilidad"><option value="1">Disponible</option><option value="4">En uso</option><option value="7">Mantenimiento</option><option value="10">Extraviado</option></InputSelect>
             </div>
+            @if (modelo.TipoPropietario != 1)
+            {
+                <div class="col-md-4"><label class="form-label">Contenido</label><InputSelect class="form-select" @bind-Value="modelo.EstadoContenido"><option value="1">Lleno</option><option value="2">Vacío</option></InputSelect></div>
+            }
+            else
+            {
+                <div class="col-md-4"><label class="form-label">Contenido</label><div class="form-control bg-light">@(Id.HasValue ? Contenido(modelo.EstadoContenido) : "Lleno")</div></div>
+            }
             <div class="col-12"><hr class="my-2" /></div>
             <div class="col-12"><h2 class="h5 mb-0">Prueba hidráulica</h2><p class="text-muted small mb-0">Ingresá los datos grabados o documentados de la última prueba realizada.</p></div>
             <div class="col-md-4">
@@ -93,18 +101,19 @@
         {
             gases = await Catalogos.GasesAsync();
             capacidades = await Catalogos.CapacidadesAsync();
-            ubicaciones = (await Catalogos.UbicacionesAsync()).Where(x => x.EsInterna).ToList();
+            ubicaciones = (await Catalogos.UbicacionesAsync()).Where(x => x.EsInterna && x.GasBateria==null).ToList();
             if (Id.HasValue)
             {
                 var x = await Api.Uno(Id.Value);
                 if (x is null) { error = "No se encontró el tubo."; return; }
-                modelo = new TuboGuardarDto { CodigoInterno = x.CodigoInterno, TipoGasId = x.TipoGasId, CapacidadTuboId = x.CapacidadTuboId, TipoPropietario = x.TipoPropietario is 1 ? 1 : 4, NombrePropietarioExterno = x.TipoPropietario is 1 ? null : x.Propietario, EstadoFisico = 1, EstadoContenido = 4, EstadoDisponibilidad = x.EstadoDisponibilidad, UbicacionId = x.UbicacionId, Marca = x.Marca, Observaciones = x.Observaciones, RegistrarPruebaInicial = true, PruebaAprobada = true, EntidadPrueba = "No especificada", FechaPruebaHidraulica = x.FechaPruebaHidraulica ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy), FechaVencimientoPrueba = x.FechaVencimientoPrueba ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy.AddYears(5)) };
+                modelo = new TuboGuardarDto { CodigoInterno = x.CodigoInterno, TipoGasId = x.TipoGasId, CapacidadTuboId = x.CapacidadTuboId, TipoPropietario = x.TipoPropietario is 1 ? 1 : 4, NombrePropietarioExterno = x.TipoPropietario is 1 ? null : x.Propietario, EstadoFisico = 1, EstadoContenido = x.EstadoContenido, EstadoDisponibilidad = x.EstadoDisponibilidad, UbicacionId = x.UbicacionId, Marca = x.Marca, Observaciones = x.Observaciones, RegistrarPruebaInicial = true, PruebaAprobada = true, EntidadPrueba = "No especificada", FechaPruebaHidraulica = x.FechaPruebaHidraulica ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy), FechaVencimientoPrueba = x.FechaVencimientoPrueba ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy.AddYears(5)) };
             }
         }
         catch (Exception ex) { error = ex.Message; }
     }
 
-    private static TuboGuardarDto NuevoModelo() => new() { TipoPropietario = 1, EstadoFisico = 1, EstadoContenido = 4, EstadoDisponibilidad = 1, RegistrarPruebaInicial = true, PruebaAprobada = true, EntidadPrueba = "No especificada" };
+    private static TuboGuardarDto NuevoModelo() => new() { TipoPropietario = 1, EstadoFisico = 1, EstadoContenido = 1, EstadoDisponibilidad = 1, RegistrarPruebaInicial = true, PruebaAprobada = true, EntidadPrueba = "No especificada" };
+    private static string Contenido(int estado) => estado switch { 1 => "Lleno", 2 => "Vacío", 3 => "Parcial", _ => "Desconocido" };
     private void Cancelar() => Nav.NavigateTo("/cilindros");
     private async Task Guardar()
     {

@@ -98,3 +98,12 @@ main {
         padding-right: 2.25rem !important;
     }
 }
+
+main { min-width:0; }
+@media (max-width:575.98px) {
+    article.content { padding-left:.75rem!important; padding-right:.75rem!important; }
+}
+@media (max-width:991.98px) {
+    /* Las ventanas deben aparecer por encima del encabezado móvil. */
+    .sidebar { z-index:1030; }
+}

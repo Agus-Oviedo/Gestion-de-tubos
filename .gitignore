@@ -17,3 +17,5 @@ GestionTubos.Api/appsettings.*.local.json
 *.p12
 .build-check/
 .publish/
+
+.run-logs/

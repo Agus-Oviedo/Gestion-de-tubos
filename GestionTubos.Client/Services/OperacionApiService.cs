@@ -21,6 +21,7 @@ public sealed class OperacionApiService(HttpClient http)
     public async Task<DevolucionLoteDto?> ObtenerDevolucionLote(long id)=>await http.GetFromJsonAsync<DevolucionLoteDto>($"api/operaciones/devoluciones-lote/{id}");
     public async Task<byte[]> DescargarDevolucionPdf(long id)=>await http.GetByteArrayAsync($"api/operaciones/devoluciones-lote/{id}/pdf");
     public async Task<DevolucionLoteDto> FirmarDevolucionLote(long id,DevolucionLoteFirmarDto dto){var r=await http.PostAsJsonAsync($"api/operaciones/devoluciones-lote/{id}/firma",dto);if(r.IsSuccessStatusCode)return(await r.Content.ReadFromJsonAsync<DevolucionLoteDto>())!;await LanzarError(r);throw new InvalidOperationException();}
+    public Task<EstadisticasClienteDto?> EstadisticasCliente(int clienteId) => http.GetFromJsonAsync<EstadisticasClienteDto>($"api/operaciones/estadisticas-clientes/{clienteId}");
     public async Task<DashboardDto> Dashboard() => (await http.GetFromJsonAsync<DashboardDto>("api/operaciones/dashboard"))!;
     public Task IniciarCarga(CargaIniciarDto dto)=>Post("api/operaciones/cargas/iniciar",dto);
     public Task FinalizarCarga(CargaFinalizarDto dto)=>Post("api/operaciones/cargas/finalizar",dto);

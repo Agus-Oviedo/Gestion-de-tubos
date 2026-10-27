@@ -183,8 +183,74 @@ code {
 .remito-company { display:grid; grid-template-columns:1fr 1fr; gap:2rem; padding:1.25rem 0; border-bottom:1px solid #ccd8e0; }.remito-company > div:last-child{text-align:right;}
 .remito-client { margin:1.25rem 0; padding:1rem 1.2rem; background:#edf6fc; border-left:5px solid #0875c1; }.remito-client span{font-size:.75rem;font-weight:700;color:#567;letter-spacing:.1em}.remito-client h2{margin:.25rem 0;font-size:1.35rem;}
 .remito-table { width:100%; border-collapse:collapse; table-layout:fixed; }.remito-table th{background:#073a70;color:#fff}.remito-table th,.remito-table td{padding:.7rem;border:1px solid #aebdc8}.remito-table th:first-child{white-space:nowrap}.remito-table tfoot td{background:#edf6fc;}
-.remito-observations { margin-top:1.2rem; min-height:80px; padding:1rem; border:1px solid #ccd8e0; }.remito-observations p{margin:.4rem 0 0;}
+.remito-observations { margin-top:1.2rem; min-height:80px; padding:1rem; border:1px solid #ccd8e0; }.remito-observations p{margin:.4rem 0 0;white-space:pre-wrap;overflow-wrap:anywhere;}
 .remito-signatures { display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:5rem }.remito-signatures div{border-top:1px solid #263b49;text-align:center;padding-top:.45rem;font-size:.85rem}.remito-document footer{text-align:center;margin-top:2.5rem;padding-top:.8rem;border-top:1px solid #ccd8e0;font-size:.75rem;color:#667;}
 .remito-electronic-signature{display:grid;grid-template-columns:1.2fr 1fr;gap:2rem;align-items:center;margin-top:2rem;padding:1rem;border:1px solid #ccd8e0;border-radius:.5rem}.remito-electronic-signature img{display:block;width:100%;height:130px;object-fit:contain}.remito-hash{margin-top:.75rem;font-size:.65rem;color:#667;overflow-wrap:anywhere}
 @page { margin: 8mm; }
 @media print { html,body{margin:0!important;padding:0!important}.sidebar,.top-row,.remito-actions,.remito-share-help,.alert,#blazor-error-ui{display:none!important}.page{display:block!important}.main{margin:0!important}.content{padding:0!important}.remito-document{max-width:none;border:0;box-shadow:none;padding:8mm}.remito-header img{width:180px} }
+
+/* Adaptación de pantallas, listados y remitos a dispositivos táctiles. */
+main, .content, .card, .card-body, .row > * { min-width:0; }
+.content { overflow-wrap:anywhere; }
+.table-responsive { width:100%; max-width:100%; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
+.table-responsive .table { margin-bottom:0; }
+.table td, .table th { vertical-align:middle; }
+.table td:last-child .btn { margin-top:.2rem; margin-bottom:.2rem; }
+.modal-body { min-width:0; overflow-x:hidden; }
+@media screen and (max-width:991.98px) {
+    .content { padding-top:1.25rem; padding-bottom:2rem; }
+    .content > .d-flex { flex-wrap:wrap; gap:.75rem; }
+    .content .btn { min-height:44px; }
+    .content .form-control, .content .form-select, .modal .form-control, .modal .form-select { min-height:44px; font-size:16px; }
+    input[type=checkbox], input[type=radio] { width:1.2rem; height:1.2rem; vertical-align:middle; margin-right:.35rem; }
+    .table-responsive .table th, .table-responsive .table td { padding:.8rem; }
+    .table-responsive .table td { min-width:105px; }
+    .table-responsive .table td:last-child { min-width:145px; }
+    .modal-dialog { margin:.75rem; max-width:calc(100% - 1.5rem); }
+    .modal-footer { gap:.5rem; }
+    .modal-footer .btn { min-height:44px; margin:0; }
+    .remito-document { padding:1.25rem; }
+    .remito-header img { width:150px; }
+    .remito-table th, .remito-table td { overflow-wrap:anywhere; }
+    .remito-table th:first-child { white-space:normal; }
+    .stock-mobile-main { grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto 10px; }
+}
+@media screen and (max-width:767.98px) {
+    h1 { font-size:1.55rem; line-height:1.2; }
+    h2.h4 { font-size:1.25rem; }
+    .card-body { padding:1rem; }
+    .table-responsive:has(table[data-mobile-cards]) { overflow:visible; padding:.5rem; }
+    .table-responsive table[data-mobile-cards],
+    .table-responsive table[data-mobile-cards] tbody { display:block; width:100%; min-width:0; }
+    table[data-mobile-cards] thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+    table[data-mobile-cards] tbody tr { display:block; margin:0 0 .75rem; border:1px solid #dce7f3; border-radius:12px; background:#fff; box-shadow:0 3px 10px rgba(8,44,91,.04); overflow:hidden; }
+    table[data-mobile-cards] tbody tr:last-child { margin-bottom:0; }
+    .table-responsive table[data-mobile-cards] td { position:relative; display:block; min-width:0; min-height:42px; padding:.75rem .8rem .75rem 40%; border:0; border-bottom:1px solid #edf1f6; overflow-wrap:anywhere; text-align:left!important; background:transparent!important; box-shadow:none; }
+    table[data-mobile-cards] td[data-label]::before { content:attr(data-label); position:absolute; top:.8rem; left:.8rem; width:calc(40% - 1.3rem); color:#496985; font-size:.76rem; font-weight:700; line-height:1.35; }
+    table[data-mobile-cards] td:last-child { border-bottom:0; }
+    .table-responsive table[data-mobile-cards] td[colspan] { padding:1rem!important; text-align:center!important; }
+    table[data-mobile-cards] td .btn { white-space:normal; max-width:100%; }
+    .modal-dialog { margin:.5rem; max-width:calc(100% - 1rem); }
+    .modal-dialog-scrollable { height:calc(100dvh - 1rem); }
+    .modal-header, .modal-footer { padding:.8rem; }
+    .modal-title { font-size:1rem; overflow-wrap:anywhere; }
+    .modal-footer .text-muted { flex-basis:100%; }
+    .modal-footer .btn { flex:1 1 auto; }
+    .modal iframe { height:65dvh!important; }
+    .remito-document { padding:1rem; box-shadow:none; }
+    .remito-header { gap:.75rem; align-items:flex-start; }
+    .remito-header img { width:100px; max-height:70px; }
+    .remito-header h1, .remito-header h3 { font-size:1.1rem; letter-spacing:0; }
+    .remito-header strong { font-size:.95rem; }
+    .remito-header > div { min-width:0; font-size:.8rem; }
+    .remito-company { display:flex; flex-direction:column; gap:.75rem; }
+    .remito-client h2 { font-size:1.2rem; }
+    .remito-table { font-size:.78rem; }
+    .remito-table th, .remito-table td { padding:.45rem .3rem; }
+    .remito-electronic-signature { display:flex; flex-direction:column; gap:.75rem; }
+    .remito-electronic-signature img { max-width:100%; }
+    .login-page { padding:1rem; }
+    .login-card { padding:1.5rem; }
+}
+
+@media print { .remito-no-print { display:none !important; } }

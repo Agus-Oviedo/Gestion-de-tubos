@@ -1,6 +1,7 @@
 @page "/"
 @attribute [Authorize]
 @inject TuboApiService Api
+@inject CatalogoApiService Catalogos
 
 <PageTitle>Resumen de stock</PageTitle>
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
@@ -12,10 +13,13 @@ else if (cargando) { <p>Cargando stock...</p> }
 else
 {
     <div class="row g-3 mb-4">
-        <div class="col-6 col-xl-3"><div class="stock-stat"><span>Total registrados</span><strong>@tubos.Count</strong></div></div>
-        <div class="col-6 col-xl-3"><div class="stock-stat stock-stat--ok"><span>Disponibles</span><strong>@Contar(1)</strong></div></div>
-        <div class="col-6 col-xl-3"><div class="stock-stat stock-stat--use"><span>En uso</span><strong>@Contar(4)</strong></div></div>
-        <div class="col-6 col-xl-3"><div class="stock-stat stock-stat--warn"><span>Mantenimiento</span><strong>@Contar(7)</strong></div></div>
+        <div class="col-6 col-md-4 col-xl-3"><div class="stock-stat"><span>Total registrados</span><strong>@tubos.Count</strong></div></div>
+        <div class="col-6 col-md-4 col-xl-3"><div class="stock-stat stock-stat--ok"><span>Llenos disponibles</span><strong>@LlenosDisponibles</strong></div></div>
+        <div class="col-6 col-md-4 col-xl-3"><div class="stock-stat stock-stat--warn"><span>Vacíos en planta</span><strong>@VaciosEnPlanta</strong></div></div>
+        <div class="col-6 col-md-4 col-xl-3"><div class="stock-stat stock-stat--use"><span>En carga externa</span><strong>@Contar(12)</strong></div></div>
+        <div class="col-6 col-md-4 col-xl-3"><div class="stock-stat stock-stat--use"><span>Con clientes</span><strong>@Contar(4)</strong></div></div>
+        <div class="col-6 col-md-4 col-xl-3"><div class="stock-stat stock-stat--use"><span>En batería</span><strong>@Contar(13)</strong></div></div>
+        <div class="col-6 col-md-4 col-xl-3"><div class="stock-stat stock-stat--warn"><span>Mantenimiento</span><strong>@Contar(7)</strong></div></div>
     </div>
     <div class="row g-4">
         <div class="col-lg-7"><div class="card h-100"><div class="card-body">
@@ -40,8 +44,11 @@ else
 
 @code {
     private List<TuboDto> tubos = [];
+    private HashSet<int> ubicacionesInternas = [];
+    private int LlenosDisponibles => tubos.Count(x => x.EstadoDisponibilidad == 1 && x.EstadoContenido == 1);
+    private int VaciosEnPlanta => tubos.Count(x => x.TipoPropietario == 1 && x.EstadoContenido == 2 && ubicacionesInternas.Contains(x.UbicacionId) && x.EstadoDisponibilidad is not (9 or 10));
     private bool cargando = true;
     private string? error;
-    protected override async Task OnInitializedAsync() { try { tubos = await Api.Todos(); } catch (Exception ex) { error = ex.Message; } finally { cargando = false; } }
+    protected override async Task OnInitializedAsync() { try { var tareaTubos=Api.Todos();var tareaUbicaciones=Catalogos.UbicacionesAsync();await Task.WhenAll(tareaTubos,tareaUbicaciones);tubos=await tareaTubos;ubicacionesInternas=(await tareaUbicaciones).Where(x=>x.EsInterna).Select(x=>x.Id).ToHashSet(); } catch (Exception ex) { error = ex.Message; } finally { cargando = false; } }
     private int Contar(int estado) => tubos.Count(x => x.EstadoDisponibilidad == estado);
 }

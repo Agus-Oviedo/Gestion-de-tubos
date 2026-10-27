@@ -29,7 +29,7 @@ public sealed class UbicacionConfiguration : IEntityTypeConfiguration<Ubicacion>
 {
     public void Configure(EntityTypeBuilder<Ubicacion> b)
     {
-        b.ToTable("Ubicaciones"); b.HasKey(x => x.Id);
+        b.ToTable("Ubicaciones"); b.Property(x=>x.GasBateria).HasMaxLength(20); b.HasKey(x => x.Id);
         b.Property(x => x.Nombre).HasMaxLength(100).IsRequired();
         b.Property(x => x.Descripcion).HasMaxLength(300);
         b.HasIndex(x => x.Nombre).IsUnique(); b.HasQueryFilter(x => x.Activa);

@@ -13,6 +13,11 @@ public sealed class LocalAuthStateProvider(IJSRuntime js) : AuthenticationStateP
     public async Task<string?> GetTokenAsync()
     {
         token ??= await js.InvokeAsync<string?>("localStorage.getItem", TokenKey);
+        if (!string.IsNullOrWhiteSpace(token) && !SesionVigente(token))
+        {
+            token = null;
+            await js.InvokeVoidAsync("localStorage.removeItem", TokenKey);
+        }
         return token;
     }
 
@@ -54,6 +59,17 @@ public sealed class LocalAuthStateProvider(IJSRuntime js) : AuthenticationStateP
         }
         catch { }
         return claims;
+    }
+
+    private static bool SesionVigente(string jwt)
+    {
+        try
+        {
+            if (jwt.Split('.').Length != 3) return false;
+            var vencimiento = ParseClaims(jwt).FirstOrDefault(x => x.Type == "exp")?.Value;
+            return long.TryParse(vencimiento, out var exp) && exp > DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        }
+        catch { return false; }
     }
 
     private static string MapType(string type) => type switch

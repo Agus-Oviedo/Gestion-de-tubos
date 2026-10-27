@@ -56,6 +56,7 @@ public sealed class PedidoDetalle
 
 public sealed class Remito
 {
+    public int Version { get; set; }
     public long Id { get; set; }
     public string Numero { get; set; } = string.Empty;
     public long PedidoId { get; set; }

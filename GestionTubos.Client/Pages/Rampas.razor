@@ -1,122 +1,59 @@
+@page "/planchadas"
 @page "/rampas"
 @attribute [Authorize]
-@inject TuboApiService Api
+@inject PlanchadaApiService Api
 @inject CatalogoApiService Catalogos
-
-<PageTitle>Rampas y baterías</PageTitle>
-<h1>Rampas y baterías</h1>
-<p class="text-muted">Lista de tubos propios. Los sectores Rampa y Planchada están dentro de planta. Elegí el sector interno de cada tubo y guardá el cambio.</p>
-
-@if (error is not null) { <div class="alert alert-danger" role="alert">@error</div> }
-@if (mensaje is not null) { <div class="alert alert-success" role="status">@mensaje</div> }
-
-<div class="card card-body mb-4">
-    <div class="row g-3 align-items-end">
-        <div class="col-md-8">
-            <label for="buscar-tubo" class="form-label">Buscar tubo</label>
-            <input id="buscar-tubo" type="search" class="form-control" placeholder="Código, serie, gas, ubicación o sector" @bind="buscar" @bind:event="oninput" />
-        </div>
-        <div class="col-md-4"><span class="text-muted">@Filtrados.Count de @tubos.Count tubos propios</span></div>
-    </div>
-</div>
-
-@if (cargando) { <p>Cargando tubos propios...</p> }
-else if (tubos.Count == 0) { <div class="alert alert-info">Todavía no hay tubos propios registrados.</div> }
-else
-{
-    @if (ubicaciones.Count == 0) { <div class="alert alert-info">No hay sectores internos activos para asignar. Cargalas desde Configuración → Catálogos.</div> }
-    @if (Filtrados.Count == 0) { <div class="alert alert-info">No hay tubos que coincidan con la búsqueda.</div> }
-    else
-    {
-        <div class="card"><div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead><tr><th>Tubo / serie</th><th>Gas / capacidad</th><th>Contenido</th><th>Estado operativo</th><th>Ubicación general</th><th>Sector interno</th><AuthorizeView Roles="Superadministrador,Administrador"><th>Asignar sector</th></AuthorizeView></tr></thead>
-                <tbody>
-                    @foreach (var t in Filtrados)
-                    {
-                        <tr @key="t.Id">
-                            <td><strong>@t.CodigoInterno</strong><br /><small>@t.NumeroSerie</small></td>
-                            <td>@t.Gas<br /><small>@t.Capacidad</small></td>
-                            <td>@Contenido(t.EstadoContenido)</td>
-                            <td>@Estado(t.EstadoDisponibilidad)</td>
-                            <td>@UbicacionGeneral(t)</td><td>@SectorActual(t)</td>
-                            <AuthorizeView Roles="Superadministrador,Administrador">
-                                <td>
-                                    @if (PuedeMover(t))
-                                    {
-                                        <div class="d-flex gap-2">
-                                            <select class="form-select" style="min-width: 150px" aria-label="@($"Sector interno para {t.CodigoInterno}")" @bind="destinos[t.Id]" disabled="@guardando">
-                                                @foreach (var u in ubicaciones) { <option value="@u.Id">@NombreSector(u.Nombre)</option> }
-                                            </select>
-                                            <button class="btn btn-primary" aria-label="@($"Guardar sector de {t.CodigoInterno}")" disabled="@(guardando || destinos[t.Id] == t.UbicacionId)" @onclick="() => Guardar(t)">Guardar</button>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <small class="text-muted">@(ubicaciones.Any(u => u.Id == t.UbicacionId) ? "Gestionar desde su operación en curso." : "El tubo debe estar en planta para asignarle un sector.")</small>
-                                    }
-                                </td>
-                            </AuthorizeView>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div></div>
-    }
+<PageTitle>Planchadas y baterías</PageTitle>
+<div class="d-flex flex-wrap justify-content-between gap-2 mb-4"><div><h1>Planchadas y baterías</h1><p class="text-muted mb-0">Control de tubos propios que alimentan las baterías y su consumo interno.</p></div><button class="btn btn-outline-primary align-self-start" disabled="@ocupado" @onclick="Actualizar">Actualizar</button></div>
+@if(error is not null){<div class="alert alert-danger" role="alert">@error</div>}@if(mensaje is not null){<div class="alert alert-success" role="status">@mensaje</div>}
+@if(cargando){<p>Cargando planchadas...</p>}else{
+ <div class="d-flex flex-wrap gap-2 mb-3"><button class="btn @(sectorId==0?"btn-primary":"btn-outline-primary")" disabled="@ocupado" @onclick="()=>ElegirSector(0)">Todas · @activos.Count en batería</button>@foreach(var s in sectores){<button @key="s.Id" class="btn @(sectorId==s.Id?"btn-primary":"btn-outline-primary")" disabled="@ocupado" @onclick="()=>ElegirSector(s.Id)">@s.Nombre · @s.TubosEnBateria</button>}</div>
+ <div class="d-flex flex-wrap gap-2 border-bottom pb-3 mb-4"><button class="btn @(!verConsumo?"btn-primary":"btn-outline-secondary")" @onclick="()=>verConsumo=false">Tubos en batería</button><button class="btn @(verConsumo?"btn-primary":"btn-outline-secondary")" @onclick="AbrirConsumo">Consumo interno e historial</button></div>
+ @if(!verConsumo){
+ <div class="card card-body mb-3"><div class="d-flex flex-wrap justify-content-between gap-2 align-items-center"><h2 class="h4 mb-0">@(sectorId==0?"Tubos en todas las planchadas":sectores.First(x=>x.Id==sectorId).Nombre)</h2><button class="btn btn-primary" disabled="@(sectorId==0||ocupado)" @onclick="AbrirIngreso">Agregar tubos a la batería</button></div>@if(sectorId==0){<small class="text-muted mt-2">Elegí una planchada para incorporar tubos de su gas.</small>}<input class="form-control mt-3" type="search" placeholder="Buscar tubo por código, gas o capacidad" @bind="buscar" @bind:event="oninput"/>
+ <div class="d-flex flex-wrap align-items-center gap-2 mt-3"><button class="btn btn-outline-secondary" disabled="@(ActivosFiltrados.Count==0)" @onclick="AlternarActivos">Seleccionar / desmarcar encontrados</button><span>@seleccion.Count seleccionados · @ActivosFiltrados.Count encontrados</span><button class="btn btn-outline-success" disabled="@(seleccion.Count==0||ocupado)" @onclick="AbrirRetiro">Retirar seleccionados (@seleccion.Count)</button></div></div>
+ @if(ActivosFiltrados.Count==0){<div class="alert alert-info">No hay tubos en batería para esta selección.</div>}else{
+ <div class="card"><div class="card-body">@foreach(var t in ActivosFiltrados){<label @key="t.Id" class="form-check border-bottom py-3 mb-0"><input class="form-check-input" type="checkbox" checked="@seleccion.Contains(t.Id)" @onchange="e=>Marcar(seleccion,t.Id,(bool)(e.Value??false))"/><span class="form-check-label"><strong>@t.Codigo</strong> · @t.Gas · @t.CapacidadNominal.ToString("0.##") @t.Unidad<span class="d-block text-muted small">@t.Sector · En batería desde @t.FechaIngresoUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm") · @t.UsuarioIngreso</span></span></label>}</div></div>}
+ }else{
+ <div class="card card-body mb-4"><h2 class="h4">Consumo interno</h2><p class="text-muted">Se registra al retirar tubos como agotados. La capacidad acumulada es nominal, no una medición del gas utilizado. Los retiros llenos o parciales no se suman al consumo.</p><div class="row g-3 align-items-end"><div class="col-sm-5"><label class="form-label" for="consumoDesde">Desde</label><input id="consumoDesde" class="form-control" type="date" @bind="desde"/></div><div class="col-sm-5"><label class="form-label" for="consumoHasta">Hasta</label><input id="consumoHasta" class="form-control" type="date" @bind="hasta"/></div><div class="col-sm-2"><button class="btn btn-primary w-100" disabled="@ocupado" @onclick="ConsultarConsumo">Consultar</button></div></div><small class="text-muted mt-2">Período por fecha de retiro, en horario de Argentina. Planchada: @(sectorId==0?"Todas":sectores.First(x=>x.Id==sectorId).Nombre).</small></div>
+ @if(consumo is not null){
+ <div class="row g-3 mb-4">@foreach(var g in consumo.PorGas){<div class="col-md-4"><div class="card card-body h-100"><h3 class="h5">@g.Gas</h3><strong class="h3">@g.TubosAgotados @(g.TubosAgotados==1?"tubo agotado":"tubos agotados")</strong><span>@g.CapacidadNominalTotal.ToString("0.##") @g.Unidad nominales</span><small class="text-muted mt-2">Promedio de permanencia: @g.DiasPromedioEnBateria.ToString("0.##") días</small></div></div>}</div>
+ @if(consumo.PorGas.Count==0){<div class="alert alert-info">No se registraron tubos agotados en el período consultado.</div>}
+ @if(consumo.PorMes.Count>0){<div class="card mb-4"><div class="card-header"><h3 class="h5 mb-0">Consumo por mes</h3></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Mes</th><th>Gas</th><th>Tubos agotados</th><th>Capacidad nominal acumulada</th></tr></thead><tbody>@foreach(var m in consumo.PorMes){<tr><td>@m.Mes</td><td>@m.Gas</td><td>@m.TubosAgotados</td><td>@m.CapacidadNominalTotal.ToString("0.##") @m.Unidad</td></tr>}</tbody></table></div></div>}
+ <h3 class="h4">Historial de retiros</h3><p class="text-muted">Incluye agotados, llenos y parciales. Se conserva quién incorporó y quién retiró cada tubo.</p>
+ @foreach(var r in historial){<details class="card mb-2"><summary class="card-header p-3"><strong>@r.Codigo · @r.Gas · @r.CapacidadNominal.ToString("0.##") @r.Unidad</strong><span class="d-block small">@r.FechaRetiroUtc?.EnArgentina().ToString("dd/MM/yyyy HH:mm") · @Resultado(r.ResultadoRetiro) · @r.Sector</span></summary><div class="card-body"><p>Ingreso: @r.FechaIngresoUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm") · @r.UsuarioIngreso</p><p>Retiro: @r.FechaRetiroUtc?.EnArgentina().ToString("dd/MM/yyyy HH:mm") · @r.UsuarioRetiro</p><p class="mb-0" style="white-space:pre-wrap;overflow-wrap:anywhere"><strong>Motivo:</strong> @r.MotivoRetiro</p></div></details>}
+ @if(historial.Count==0){<p class="text-muted">No hay retiros para este período.</p>}@if(hayMas){<button class="btn btn-outline-primary" disabled="@ocupado" @onclick="MasHistorial">Cargar retiros anteriores</button>}
+ }
+ }
 }
-
-@code {
-    private List<TuboDto> tubos = [];
-    private List<UbicacionDto> ubicaciones = [];
-    private Dictionary<int, int> destinos = [];
-    private string buscar = "";
-    private string? error, mensaje;
-    private bool cargando = true, guardando;
-    private List<TuboDto> Filtrados => tubos.Where(t => string.IsNullOrWhiteSpace(buscar)
-        || string.Join(' ', t.CodigoInterno, t.NumeroSerie, t.Gas, t.Ubicacion, UbicacionGeneral(t), SectorActual(t)).Contains(buscar.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
-    private bool PuedeMover(TuboDto t) => t.EstadoDisponibilidad is 1 or 6 or 7 or 8 && ubicaciones.Any(u => u.Id == t.UbicacionId);
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            ubicaciones = (await Catalogos.UbicacionesAsync()).Where(x => x.EsInterna).ToList();
-            tubos = (await Api.Todos()).Where(x => x.TipoPropietario == 1).OrderBy(x => x.CodigoInterno).ToList();
-            destinos = tubos.ToDictionary(x => x.Id, x => x.UbicacionId);
-        }
-        catch (Exception e) { error = e.Message; }
-        finally { cargando = false; }
-    }
-
-    private async Task Guardar(TuboDto tubo)
-    {
-        if (guardando || !PuedeMover(tubo)) return;
-        var destino = destinos[tubo.Id];
-        if (destino == tubo.UbicacionId) return;
-        guardando = true; error = mensaje = null;
-        try
-        {
-            await Api.UbicarPropios(new() { UbicacionDestinoId = destino, Tubos = [new() { Id = tubo.Id, UbicacionOrigenId = tubo.UbicacionId }] });
-            var nombre = ubicaciones.First(x => x.Id == destino).Nombre;
-            tubos[tubos.FindIndex(x => x.Id == tubo.Id)] = tubo with { UbicacionId = destino, Ubicacion = nombre };
-            mensaje = $"Tubo {tubo.CodigoInterno}: sector interno actualizado a {NombreSector(nombre)}. Continúa en planta.";
-        }
-        catch (Exception e) { error = e.Message; }
-        finally { guardando = false; }
-    }
-
-    private bool EnPlanta(TuboDto t) => t.EstadoDisponibilidad is not (3 or 4 or 9 or 10) && ubicaciones.Any(u => u.Id == t.UbicacionId);
-    private string UbicacionGeneral(TuboDto t) => t.EstadoDisponibilidad switch
-    {
-        3 => "En reparto",
-        4 => "En poder de un cliente",
-        9 => "Dado de baja",
-        10 => "Ubicación desconocida",
-        _ => EnPlanta(t) ? "En planta" : t.Ubicacion
-    };
-    private string SectorActual(TuboDto t) => EnPlanta(t) ? NombreSector(t.Ubicacion) : "—";
-    private static string NombreSector(string nombre) => nombre.Equals("PLANTA", StringComparison.OrdinalIgnoreCase) ? "General (sin sector asignado)" : nombre;
-    private static string Contenido(int x) => x switch { 1 => "Lleno", 2 => "Vacío", 3 => "Parcial", _ => "Desconocido" };
-    private static string Estado(int x) => x switch { 1 => "Disponible", 2 => "Reservado", 3 => "En reparto", 4 => "Fuera de planta", 5 => "En carga", 6 => "A inspeccionar", 7 => "Mantenimiento", 8 => "Prueba hidráulica", 9 => "Baja", 10 => "Extraviado", _ => "Desconocido" };
+@if(ingresoAbierto){
+ <div class="modal-backdrop show"></div><div class="modal show d-block" role="dialog" aria-modal="true" aria-labelledby="tituloIngresoBateria"><div class="modal-dialog modal-xl"><div class="modal-content"><EditForm Model="ingreso" OnValidSubmit="ConfirmarIngreso"><DataAnnotationsValidator/><div class="modal-header"><h2 id="tituloIngresoBateria" class="modal-title h5">Agregar tubos · @sectores.First(x=>x.Id==ingreso.SectorId).Nombre</h2><button type="button" class="btn-close" aria-label="Cerrar" disabled="@ocupado" @onclick="()=>ingresoAbierto=false"></button></div><div class="modal-body" style="max-height:65vh;overflow:auto"><ValidationSummary/>@if(error is not null){<div class="alert alert-danger">@error</div>}<p>Solo tubos propios llenos, disponibles, con PH vigente y del gas de esta planchada.</p><input class="form-control mb-3" type="search" placeholder="Buscar entre los tubos aptos" @bind="buscarIngreso" @bind:event="oninput"/><div class="d-flex flex-wrap gap-2 align-items-center mb-2"><button type="button" class="btn btn-outline-secondary" @onclick="AlternarCandidatos">Seleccionar / desmarcar encontrados</button><span>@ingreso.TuboIds.Count seleccionados · @CandidatosFiltrados.Count encontrados</span></div>@foreach(var t in CandidatosFiltrados){<label @key="t.Id" class="form-check py-2 border-bottom"><input type="checkbox" class="form-check-input" checked="@ingreso.TuboIds.Contains(t.Id)" @onchange="e=>MarcarIngreso(t.Id,(bool)(e.Value??false))"/><span class="form-check-label"><strong>@t.Codigo</strong> · @t.Gas · @t.CapacidadNominal.ToString("0.##") @t.Unidad · @t.Ubicacion</span></label>}@if(candidatos.Count==0){<p class="text-muted">No hay tubos aptos disponibles para esta planchada.</p>}</div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" disabled="@ocupado" @onclick="()=>ingresoAbierto=false">Cancelar</button><button class="btn btn-primary" disabled="@(ocupado||ingreso.TuboIds.Count==0)">Incorporar a batería (@ingreso.TuboIds.Count)</button></div></EditForm></div></div></div>
 }
-
+@if(retiroAbierto){
+ <div class="modal-backdrop show"></div><div class="modal show d-block" role="dialog" aria-modal="true" aria-labelledby="tituloRetiroBateria"><div class="modal-dialog modal-lg"><div class="modal-content"><EditForm Model="retiro" OnValidSubmit="ConfirmarRetiro"><DataAnnotationsValidator/><div class="modal-header"><h2 id="tituloRetiroBateria" class="modal-title h5">Retirar @retiro.UsoIds.Count @(retiro.UsoIds.Count==1?"tubo":"tubos") de batería</h2><button type="button" class="btn-close" aria-label="Cerrar" disabled="@ocupado" @onclick="()=>retiroAbierto=false"></button></div><div class="modal-body" style="max-height:65vh;overflow:auto"><ValidationSummary/>@if(error is not null){<div class="alert alert-danger">@error</div>}@foreach(var t in activos.Where(x=>retiro.UsoIds.Contains(x.Id))){<div class="border-bottom py-2"><strong>@t.Codigo</strong> · @t.Gas · @t.CapacidadNominal.ToString("0.##") @t.Unidad</div>}<label class="form-label mt-3">Contenido al retirar</label><InputSelect class="form-select" @bind-Value="retiro.Resultado"><option value="Agotado">Agotado: pasar a vacíos y registrar consumo nominal</option><option value="Lleno">Lleno: sin consumo registrado</option><option value="Parcial">Parcial: sin consumo completo registrado</option></InputSelect><label class="form-label mt-3">Ubicación de stock donde queda</label><InputSelect class="form-select" @bind-Value="retiro.UbicacionDestinoId"><option value="0">Seleccionar</option>@foreach(var u in ubicaciones){<option value="@u.Id">@u.Nombre</option>}</InputSelect><label class="form-label mt-3">Motivo / observaciones @(retiro.Resultado=="Agotado"?"(opcional)":"(obligatorio)")</label><InputTextArea class="form-control" rows="3" maxlength="1000" @bind-Value="retiro.Motivo"/><p class="text-muted small mt-2 mb-0">Los agotados quedan vacíos. Si venció la PH o requieren mantenimiento, quedan pendientes de revisión.</p></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" disabled="@ocupado" @onclick="()=>retiroAbierto=false">Cancelar</button><button class="btn btn-success" disabled="@ocupado">Confirmar retiro (@retiro.UsoIds.Count)</button></div></EditForm></div></div></div>
+}
+@code{
+ private List<SectorBateriaDto>sectores=[];private List<UsoBateriaDto>activos=[],historial=[];private List<CandidatoBateriaDto>candidatos=[];private List<UbicacionDto>ubicaciones=[];
+ private HashSet<long>seleccion=[];private BateriaIngresoDto ingreso=new();private BateriaRetiroDto retiro=new();private ConsumoInternoDto?consumo;
+ private bool cargando=true,ocupado,verConsumo,ingresoAbierto,retiroAbierto,hayMas;private int sectorId;private string buscar="",buscarIngreso="";private string?error,mensaje;
+ private DateOnly desde=new(HoraArgentina.Hoy.Year,HoraArgentina.Hoy.Month,1),hasta=DateOnly.FromDateTime(HoraArgentina.Hoy);
+ private List<UsoBateriaDto>ActivosFiltrados=>activos.Where(x=>(sectorId==0||x.SectorId==sectorId)&&BusquedaTubos.Coincide(buscar,x.Gas,x.Codigo,x.CapacidadNominal.ToString(),x.Unidad,x.Sector)).ToList();
+ private List<CandidatoBateriaDto>CandidatosFiltrados=>candidatos.Where(x=>BusquedaTubos.Coincide(buscarIngreso,x.Gas,x.Codigo,x.CapacidadNominal.ToString(),x.Unidad,x.Ubicacion)).ToList();
+ protected override async Task OnInitializedAsync(){try{await Cargar();}catch(Exception e){error=e.Message;}finally{cargando=false;}}
+ private async Task Cargar(){sectores=await Api.Sectores();activos=await Api.Activos();ubicaciones=(await Catalogos.UbicacionesAsync()).Where(x=>x.EsInterna&&x.GasBateria==null).ToList();seleccion.IntersectWith(activos.Select(x=>x.Id));}
+ private async Task Actualizar(){try{ocupado=true;error=null;await Cargar();if(verConsumo)await CargarConsumo();}catch(Exception e){error=e.Message;}finally{ocupado=false;}}
+ private async Task ElegirSector(int id){sectorId=id;seleccion.Clear();buscar="";if(verConsumo)await ConsultarConsumo();}
+ private static void Marcar(HashSet<long>lista,long id,bool valor){if(valor)lista.Add(id);else lista.Remove(id);}
+ private void AlternarActivos(){var ids=ActivosFiltrados.Select(x=>x.Id).ToList();var quitar=ids.All(seleccion.Contains);foreach(var id in ids)Marcar(seleccion,id,!quitar);}
+ private void MarcarIngreso(int id,bool valor){if(valor&&!ingreso.TuboIds.Contains(id))ingreso.TuboIds.Add(id);if(!valor)ingreso.TuboIds.Remove(id);}
+ private void AlternarCandidatos(){var ids=CandidatosFiltrados.Select(x=>x.Id).ToList();var quitar=ids.All(ingreso.TuboIds.Contains);foreach(var id in ids)MarcarIngreso(id,!quitar);}
+ private async Task AbrirIngreso(){try{ocupado=true;error=mensaje=null;ingreso=new(){SectorId=sectorId};buscarIngreso="";candidatos=await Api.Candidatos(sectorId);ingresoAbierto=true;}catch(Exception e){error=e.Message;}finally{ocupado=false;}}
+ private void AbrirRetiro(){error=mensaje=null;retiro=new(){UsoIds=seleccion.ToList(),Resultado="Agotado",UbicacionDestinoId=ubicaciones.FirstOrDefault(x=>x.Nombre.Equals("Planta",StringComparison.OrdinalIgnoreCase))?.Id??ubicaciones.FirstOrDefault()?.Id??0};retiroAbierto=true;}
+ private async Task ConfirmarIngreso(){if(ocupado)return;try{ocupado=true;error=null;await Api.Ingresar(ingreso);ingresoAbierto=false;await Cargar();mensaje="Tubos incorporados a la batería. Ya no están disponibles para entregas a clientes.";}catch(Exception e){error=e.Message;}finally{ocupado=false;}}
+ private async Task ConfirmarRetiro(){if(ocupado)return;try{ocupado=true;error=null;await Api.Retirar(retiro);retiroAbierto=false;seleccion.Clear();await Cargar();mensaje=retiro.Resultado=="Agotado"?"Retiro registrado: tubos vacíos en planta y consumo nominal actualizado.":"Retiro registrado sin sumar un consumo completo.";}catch(Exception e){error=e.Message;}finally{ocupado=false;}}
+ private async Task AbrirConsumo(){verConsumo=true;await ConsultarConsumo();}
+ private async Task ConsultarConsumo(){try{ocupado=true;error=null;await CargarConsumo();}catch(Exception e){error=e.Message;}finally{ocupado=false;}}
+ private async Task CargarConsumo(){consumo=await Api.Consumo(desde,hasta,sectorId==0?null:sectorId);var h=await Api.Historial(desde,hasta,sectorId==0?null:sectorId,null);historial=h.Registros.ToList();hayMas=h.HayMas;}
+ private async Task MasHistorial(){try{ocupado=true;var h=await Api.Historial(desde,hasta,sectorId==0?null:sectorId,historial.LastOrDefault()?.Id);historial.AddRange(h.Registros);hayMas=h.HayMas;}catch(Exception e){error=e.Message;}finally{ocupado=false;}}
+ private static string Resultado(string?valor)=>valor switch{"Agotado"=>"Agotado · consumo registrado","Lleno"=>"Retirado lleno","Parcial"=>"Retirado parcial",_=>"En batería"};
+}

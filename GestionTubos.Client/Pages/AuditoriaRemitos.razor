@@ -1,0 +1,6 @@
+@page "/auditoria-remitos"
+@attribute [Authorize(Roles="Superadministrador,Administrador")]
+<PageTitle>Auditoría de remitos</PageTitle>
+<h1>Auditoría de remitos</h1>
+<p class="text-muted">Creaciones, ediciones, firmas y eliminaciones de borradores. Los registros de auditoría no pueden editarse ni borrarse.</p>
+<HistorialAuditoria/>

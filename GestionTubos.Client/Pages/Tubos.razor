@@ -2,19 +2,23 @@
 @attribute [Authorize]
 @inject TuboApiService Api
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>Stock de tubos</PageTitle>
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
     <div><h1 class="mb-1">Stock de tubos</h1><p class="text-muted mb-0">@Filtrados.Count de @tubos.Count tubos registrados.</p></div>
-    <AuthorizeView Roles="Superadministrador,Administrador"><button class="btn btn-primary btn-lg" @onclick="Nuevo">＋ Cargar tubo</button></AuthorizeView>
+    <div class="d-flex flex-wrap gap-2"><button class="btn btn-outline-primary" disabled="@(exportando||cargando||Filtrados.Count==0)" @onclick="ExportarPdf">@(exportando?"Preparando PDF...":"Descargar listado PDF")</button><AuthorizeView Roles="Superadministrador,Administrador"><button class="btn btn-primary btn-lg" @onclick="Nuevo">＋ Cargar tubo</button></AuthorizeView></div>
 </div>
 
 <div class="card card-body mb-4">
     <div class="row g-3">
-        <div class="col-lg-5"><label class="form-label">Buscar por código de serie</label><input type="search" class="form-control" placeholder="Escribí el código, gas, marca o propietario" @bind="buscar" @bind:event="oninput" /></div>
+        <div class="col-lg-4"><label class="form-label">Buscar por código de serie</label><input type="search" class="form-control" placeholder="Escribí el código, gas, marca o propietario" @bind="buscar" @bind:event="oninput" /></div>
         <div class="col-sm-4 col-lg-2"><label class="form-label">Gas</label><select class="form-select" @bind="gas"><option value="">Todos</option>@foreach (var x in Gases) { <option value="@x">@x</option> }</select></div>
         <div class="col-sm-4 col-lg-2"><label class="form-label">Capacidad</label><select class="form-select" @bind="capacidad"><option value="">Todas</option>@foreach (var x in Capacidades) { <option value="@x">@x</option> }</select></div>
-        <div class="col-sm-4 col-lg-3"><label class="form-label">Estado</label><select class="form-select" @bind="estado"><option value="0">Todos</option><option value="1">Disponible</option><option value="4">En uso</option><option value="7">Mantenimiento</option><option value="10">Extraviado</option></select></div>
+        <div class="col-sm-4 col-lg-4"><label class="form-label">Estado</label><select class="form-select" @bind="estado"><option value="0">Todos</option><option value="1">Disponible</option><option value="4">En uso</option><option value="12">En carga externa</option><option value="13">En batería</option><option value="7">Mantenimiento</option><option value="10">Extraviado</option></select></div>
+        <div class="col-sm-6 col-lg-5"><label class="form-label" for="filtroContenido">Contenido</label><select id="filtroContenido" class="form-select" @bind="contenido"><option value="0">Llenos y vacíos (todos)</option><option value="1">Llenos</option><option value="2">Vacíos</option><option value="3">Parcialmente llenos</option><option value="4">Sin determinar</option></select></div>
+        <div class="col-sm-6 col-lg-5"><label class="form-label" for="filtroUbicacion">Ubicación</label><select id="filtroUbicacion" class="form-select" @bind="ubicacionId"><option value="0">Todas las ubicaciones</option>@foreach(var u in Ubicaciones){<option value="@u.UbicacionId">@u.Ubicacion</option>}</select></div>
+        <div class="col-lg-2 d-flex align-items-end"><button type="button" class="btn btn-outline-secondary w-100" @onclick="LimpiarFiltros">Limpiar filtros</button></div>
     </div>
 </div>
 
@@ -25,8 +29,8 @@ else if (Filtrados.Count == 0) { <div class="alert alert-info">No hay tubos que 
 else
 {
     <div class="card overflow-hidden d-none d-lg-block"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-        <thead><tr><th>ID</th><th>Código de serie</th><th>Gas / capacidad</th><th>Propietario</th><th>Ubicación</th><th>Prueba hidráulica</th><th>Estado</th><th></th></tr></thead>
-        <tbody>@foreach (var x in Filtrados) { <tr><td class="text-muted">#@x.Id</td><td><strong class="serial-code">@x.CodigoInterno</strong>@if(!string.IsNullOrWhiteSpace(x.Marca)){<br /><small class="text-muted">@x.Marca</small>}</td><td>@x.Gas<br /><small class="text-muted">@x.Capacidad</small></td><td>@x.Propietario</td><td>@x.Ubicacion</td><td>@if(x.FechaVencimientoPrueba.HasValue){<span class="badge @ClasePrueba(x.FechaVencimientoPrueba.Value)">@EstadoPrueba(x.FechaVencimientoPrueba.Value)</span><br /><small>Vence @x.FechaVencimientoPrueba.Value.ToString("dd/MM/yyyy")</small>}else{<span class="badge bg-danger">Sin registrar</span>}</td><td><span class="badge @ClaseEstado(x.EstadoDisponibilidad)">@NombreEstado(x.EstadoDisponibilidad)</span></td><td class="text-end"><AuthorizeView Roles="Superadministrador,Administrador" Context="accionesRol"><button class="btn btn-sm btn-outline-primary me-2" @onclick="() => Editar(x.Id)">Editar</button><ConfirmarAccion Texto="Baja" Mensaje="@($"¿Dar de baja el tubo con código «{x.CodigoInterno}»?")" OnConfirmar="() => Baja(x.Id)" /></AuthorizeView></td></tr> }</tbody>
+        <thead><tr><th>ID</th><th>Código de serie</th><th>Gas / capacidad</th><th>Propietario</th><th>Ubicación</th><th>Prueba hidráulica</th><th>Estado / contenido</th><th></th></tr></thead>
+        <tbody>@foreach (var x in Filtrados) { <tr><td class="text-muted">#@x.Id</td><td><strong class="serial-code">@x.CodigoInterno</strong>@if(!string.IsNullOrWhiteSpace(x.Marca)){<br /><small class="text-muted">@x.Marca</small>}</td><td>@x.Gas<br /><small class="text-muted">@x.Capacidad</small></td><td>@x.Propietario</td><td>@x.Ubicacion</td><td>@if(x.FechaVencimientoPrueba.HasValue){<span class="badge @ClasePrueba(x.FechaVencimientoPrueba.Value)">@EstadoPrueba(x.FechaVencimientoPrueba.Value)</span><br /><small>Vence @x.FechaVencimientoPrueba.Value.ToString("dd/MM/yyyy")</small>}else{<span class="badge bg-danger">Sin registrar</span>}</td><td><span class="badge @ClaseEstado(x.EstadoDisponibilidad)">@NombreEstado(x.EstadoDisponibilidad)</span><br/><small>@NombreContenido(x.EstadoContenido)</small></td><td class="text-end"><AuthorizeView Roles="Superadministrador,Administrador" Context="accionesRol"><button class="btn btn-sm btn-outline-primary me-2" @onclick="() => Editar(x.Id)">Editar</button><ConfirmarAccion Texto="Baja" Mensaje="@($"¿Dar de baja el tubo con código «{x.CodigoInterno}»?")" OnConfirmar="() => Baja(x.Id)" /></AuthorizeView></td></tr> }</tbody>
     </table></div></div>
     <div class="d-lg-none stock-mobile-list card overflow-hidden">
         @foreach (var x in Filtrados)
@@ -35,7 +39,7 @@ else
                 <button type="button" class="stock-mobile-main" @onclick="() => Editar(x.Id)">
                     <span class="stock-mobile-serial"><small>#@x.Id</small><strong>@x.CodigoInterno</strong></span>
                     <span class="stock-mobile-description"><strong>@x.Gas · @x.Capacidad</strong><small>@x.Ubicacion · @x.Propietario</small></span>
-                    <span class="stock-mobile-status"><span class="badge @ClaseEstado(x.EstadoDisponibilidad)">@NombreEstado(x.EstadoDisponibilidad)</span>@if(x.FechaVencimientoPrueba.HasValue){<small class="@ClaseTextoPrueba(x.FechaVencimientoPrueba.Value)">PH @x.FechaVencimientoPrueba.Value.ToString("MM/yy")</small>}else{<small class="text-danger">Sin PH</small>}</span>
+                    <span class="stock-mobile-status"><span class="badge @ClaseEstado(x.EstadoDisponibilidad)">@NombreEstado(x.EstadoDisponibilidad)</span><small>@NombreContenido(x.EstadoContenido)</small>@if(x.FechaVencimientoPrueba.HasValue){<small class="@ClaseTextoPrueba(x.FechaVencimientoPrueba.Value)">PH @x.FechaVencimientoPrueba.Value.ToString("MM/yy")</small>}else{<small class="text-danger">Sin PH</small>}</span>
                     <span class="stock-mobile-arrow" aria-hidden="true">›</span>
                 </button>
                 <AuthorizeView Roles="Superadministrador,Administrador" Context="accionesMovil">
@@ -47,20 +51,25 @@ else
 }
 
 @code {
+    private bool exportando;
+    private async Task ExportarPdf(){try{exportando=true;error=null;var filtros=$"Búsqueda: {(string.IsNullOrWhiteSpace(buscar)?"Todas":buscar)} · Gas: {(string.IsNullOrEmpty(gas)?"Todos":gas)} · Capacidad: {(string.IsNullOrEmpty(capacidad)?"Todas":capacidad)} · Estado: {(estado==0?"Todos":NombreEstado(estado))} · Contenido: {(contenido==0?"Todos":NombreContenido(contenido))} · Ubicación: {(ubicacionId==0?"Todas":Ubicaciones.First(x=>x.UbicacionId==ubicacionId).Ubicacion)}";var bytes=await Api.ListadoPdf(new(){TuboIds=Filtrados.Select(x=>x.Id).ToList(),Filtros=filtros});await JS.InvokeVoidAsync("descargarArchivoBase64",$"Listado-tubos-{HoraArgentina.Hoy:yyyy-MM-dd}.pdf","application/pdf",Convert.ToBase64String(bytes));}catch(Exception ex){error=ex.Message;}finally{exportando=false;}}
     private List<TuboDto> tubos = [];
     private string buscar = "", gas = "", capacidad = "";
-    private int estado;
+    private int estado,contenido,ubicacionId;
     private bool cargando = true;
     private string? error;
     private List<TuboDto> Filtrados => tubos.Where(Coincide).OrderBy(x => x.CodigoInterno).ToList();
+    private IEnumerable<TuboDto> Ubicaciones => tubos.GroupBy(x=>x.UbicacionId).Select(g=>g.First()).OrderBy(x=>x.Ubicacion);
+    private void LimpiarFiltros(){buscar=gas=capacidad="";estado=contenido=ubicacionId=0;}
+    private static string NombreContenido(int x)=>x switch{1=>"Lleno",2=>"Vacío",3=>"Parcialmente lleno",_=>"Sin determinar"};
     private IEnumerable<string> Gases => tubos.Select(x => x.Gas).Distinct().Order();
     private IEnumerable<string> Capacidades => tubos.Select(x => x.Capacidad).Distinct().Order();
     protected override async Task OnInitializedAsync() { try { tubos = await Api.Todos(); } catch (Exception ex) { error = ex.Message; } finally { cargando = false; } }
-    private bool Coincide(TuboDto x) { var texto = string.Join(' ', x.CodigoInterno, x.Propietario, x.Gas, x.Capacidad, x.Ubicacion, x.Marca); return (string.IsNullOrWhiteSpace(buscar) || texto.Contains(buscar, StringComparison.OrdinalIgnoreCase)) && (string.IsNullOrEmpty(gas) || x.Gas == gas) && (string.IsNullOrEmpty(capacidad) || x.Capacidad == capacidad) && (estado == 0 || x.EstadoDisponibilidad == estado); }
+    private bool Coincide(TuboDto x) { var texto = string.Join(' ', x.CodigoInterno, x.Propietario, x.Gas, x.Capacidad, x.Ubicacion, x.Marca); return BusquedaTubos.Coincide(buscar,x.Gas,x.CodigoInterno,x.Propietario,x.Capacidad,x.Ubicacion,x.Marca) && (string.IsNullOrEmpty(gas) || x.Gas == gas) && (string.IsNullOrEmpty(capacidad) || x.Capacidad == capacidad) && (estado == 0 || x.EstadoDisponibilidad == estado) && (contenido==0 || x.EstadoContenido==contenido) && (ubicacionId==0 || x.UbicacionId==ubicacionId); }
     private void Nuevo() => Nav.NavigateTo("/cilindros/nuevo");
     private void Editar(int id) => Nav.NavigateTo($"/cilindros/{id}");
     private async Task Baja(int id) { try { await Api.Eliminar(id); tubos = await Api.Todos(); } catch (Exception ex) { error = ex.Message; } }
-    private static string NombreEstado(int x) => x switch { 1 => "Disponible", 4 => "En uso", 7 => "Mantenimiento", 9 => "Baja", 10 => "Extraviado", _ => "Otro" };
+    private static string NombreEstado(int x) => x switch { 1 => "Disponible", 4 => "En uso", 7 => "Mantenimiento", 9 => "Baja", 10 => "Extraviado", 11 => "Preparado para carga", 12 => "En carga externa", 13 => "En batería", _ => "Otro" };
     private static string ClaseEstado(int x) => x switch { 1 => "bg-success", 4 => "bg-primary", 7 => "bg-warning text-dark", 9 or 10 => "bg-danger", _ => "bg-secondary" };
     private static string EstadoPrueba(DateOnly fecha) { var hoy = DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy); return fecha < hoy ? "Vencida" : fecha <= hoy.AddMonths(3) ? "Próxima a vencer" : "Vigente"; }
     private static string ClasePrueba(DateOnly fecha) { var estado = EstadoPrueba(fecha); return estado == "Vigente" ? "bg-success" : estado == "Próxima a vencer" ? "bg-warning text-dark" : "bg-danger"; }

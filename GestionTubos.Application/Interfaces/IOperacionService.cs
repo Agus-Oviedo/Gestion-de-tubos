@@ -14,6 +14,7 @@ public interface IOperacionService
     Task<DevolucionLoteDto> CrearDevolucionLoteAsync(DevolucionLoteCrearDto dto,string usuario,CancellationToken ct);
     Task<DevolucionLoteDto?> ObtenerDevolucionLoteAsync(long id,CancellationToken ct);
     Task<DevolucionLoteDto> FirmarDevolucionLoteAsync(long id,DevolucionLoteFirmarDto dto,string usuario,CancellationToken ct);
+    Task<EstadisticasClienteDto?> EstadisticasClienteAsync(int clienteId, CancellationToken ct);
     Task<DashboardDto> DashboardAsync(CancellationToken ct);
     Task IniciarCargaAsync(CargaIniciarDto dto, string usuario, CancellationToken ct);
     Task FinalizarCargaAsync(CargaFinalizarDto dto, string usuario, CancellationToken ct);

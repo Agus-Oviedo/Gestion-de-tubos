@@ -1,8 +1,9 @@
 using GestionTubos.Application.Interfaces;using GestionTubos.Shared.Tubos;using Microsoft.AspNetCore.Mvc;using Microsoft.AspNetCore.Authorization;
 namespace GestionTubos.Api.Controllers;
-[ApiController][Route("api/cilindros")][Authorize]public sealed class TubosController(ITuboService s):ControllerBase
+[ApiController][Route("api/cilindros")][Authorize]public sealed class TubosController(ITuboService s,GestionTubos.Api.Services.InventarioPdfGenerator pdf):ControllerBase
 {
  [HttpPost("ubicacion")][Authorize(Roles="Superadministrador,Administrador")]public Task<IActionResult> Ubicar(TubosUbicarDto d,CancellationToken ct)=>Ejecutar(async()=>{await s.UbicarPropiosAsync(d,User.Identity?.Name??"Sistema",ct);return NoContent();});
+ [HttpPost("listado/pdf")]public Task<IActionResult> ListadoPdf(ListadoTubosPdfDto dto,CancellationToken ct)=>Ejecutar(async()=>{var ids=dto.TuboIds.ToHashSet();var tubos=(await s.ObtenerTodosAsync(null,ct)).Where(x=>ids.Contains(x.Id)).ToList();if(tubos.Count!=ids.Count)throw new InvalidOperationException("El inventario cambió. Actualizá el listado antes de exportar.");return File(pdf.Crear(tubos,dto.Filtros),"application/pdf","Listado-tubos.pdf");});
  [HttpGet]public async Task<IActionResult> Todos([FromQuery]string? buscar,[FromQuery]int? clientePropietarioId,CancellationToken ct){var xs=await s.ObtenerTodosAsync(buscar,ct);return Ok(clientePropietarioId.HasValue?xs.Where(x=>x.ClientePropietarioId==clientePropietarioId):xs);}
  [HttpGet("{id:int}")]public async Task<IActionResult> Uno(int id,CancellationToken ct){var x=await s.ObtenerAsync(id,ct);return x is null?NotFound():Ok(x);}
  [HttpPost][Authorize(Roles="Superadministrador,Administrador")]public Task<IActionResult> Crear(TuboGuardarDto d,CancellationToken ct)=>Ejecutar(async()=>Created("",await s.CrearAsync(d,ct)));

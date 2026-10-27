@@ -1,0 +1,94 @@
+@page "/estadisticas-clientes"
+@attribute [Authorize]
+@inject ClienteApiService ClientesApi
+@inject OperacionApiService Api
+<PageTitle>Estadísticas por cliente</PageTitle>
+<h1>Estadísticas por cliente</h1>
+<p class="text-muted">Consultá los tubos en poder de cada cliente y su historial de entregas y devoluciones.</p>
+<div class="card card-body shadow-sm mb-4"><div class="row g-3 align-items-end">
+    <div class="col-md-9"><label class="form-label fw-bold">Cliente</label><ClienteBuscador Clientes="clientes" ClienteId="seleccionadoId" ClienteIdChanged="Seleccionar" /></div>
+    <div class="col-md-3"><button class="btn btn-outline-primary w-100" disabled="@(cargando || !seleccionadoId.HasValue)" @onclick="Actualizar">Actualizar</button></div>
+</div></div>
+@if(error is not null){<div class="alert alert-danger" role="alert">@error</div>}
+@if(cargando){<p>Cargando estadísticas...</p>}
+else if(estadisticas is null){<div class="alert alert-info">Seleccioná un cliente para ver sus estadísticas.</div>}
+else{
+    <h2 class="h4">@estadisticas.Cliente</h2>
+    <p class="text-muted small">Historial completo de tubos con seguimiento de entrega y devolución. Actualizado el @estadisticas.ActualizadoUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm").</p>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="card card-body h-100"><span>En poder del cliente</span><strong class="fs-2 text-primary">@estadisticas.TubosActuales</strong><small class="text-muted">Tubos actuales</small></div></div>
+        <div class="col-md-4"><div class="card card-body h-100"><span>Entregados</span><strong class="fs-2">@estadisticas.TubosEntregados</strong><small class="text-muted">Cada entrega de un tubo cuenta una vez</small></div></div>
+        <div class="col-md-4"><div class="card card-body h-100"><span>Devueltos</span><strong class="fs-2 text-success">@estadisticas.TubosDevueltos</strong><small class="text-muted">Devoluciones confirmadas por tubo</small></div></div>
+    </div>
+    <section class="card card-body shadow-sm mb-4">
+        <h2 class="h4">Flujo de tubos</h2>
+        <div class="row g-3 mb-3">
+            <div class="col-md-4"><label for="flujoDesde" class="form-label">Desde</label><InputDate id="flujoDesde" class="form-control" @bind-Value="desde" /></div>
+            <div class="col-md-4"><label for="flujoHasta" class="form-label">Hasta</label><InputDate id="flujoHasta" class="form-control" @bind-Value="hasta" /></div>
+        </div>
+        @if(desde > hasta){<div class="alert alert-warning">La fecha desde debe ser anterior o igual a la fecha hasta.</div>}
+        else{
+            var flujo = CalculadoraFlujoCliente.Calcular(estadisticas.Tubos, desde, hasta);
+            <p class="text-muted small">Entregados: tubos que recibe el cliente. Devueltos: tubos que regresan a planta. Cada movimiento cuenta, aunque sea el mismo tubo en distintas entregas.</p>
+            <div class="row g-3 mb-3">
+                <div class="col-md-3"><span>Entregados en el período</span><strong class="d-block fs-2 text-primary">@flujo.Entregados</strong></div>
+                <div class="col-md-3"><span>Devueltos en el período</span><strong class="d-block fs-2 text-success">@flujo.Devueltos</strong></div>
+                <div class="col-md-3"><span>Variación de tubos con el cliente</span><strong class="d-block fs-2">@flujo.Variacion.ToString("+0;-0;0")</strong></div>
+                <div class="col-md-3"><span>Tiempo promedio hasta devolver</span><strong class="d-block fs-2">@(flujo.PromedioDiasDevolucion.HasValue ? flujo.PromedioDiasDevolucion.Value.ToString("0.0") + " días" : "Sin devoluciones")</strong></div>
+            </div>
+            <p><strong>@flujo.SaldoInicial</strong> tubos al inicio + <strong>@flujo.Entregados</strong> entregados − <strong>@flujo.Devueltos</strong> devueltos = <strong>@flujo.SaldoFinal</strong> tubos con el cliente al cierre del período.</p>
+            <p class="text-muted small">Las devoluciones se cuentan por su fecha de confirmación, aunque la entrega haya sido anterior al período. El promedio corresponde a los tubos devueltos en estas fechas.</p>
+            <h3 class="h5">Evolución mensual</h3>
+            <div class="table-responsive mb-3"><table class="table align-middle"><thead><tr><th>Mes</th><th>Entregados</th><th>Devueltos</th><th class="text-end">Variación</th></tr></thead><tbody>
+                @foreach(var mes in flujo.Meses){<tr><td>@mes.Mes.ToString("MM/yyyy")</td><td><span class="d-inline-block bg-primary rounded me-2" style="height:10px;width:@(AnchoBarra(mes.Entregados, flujo))px" aria-hidden="true"></span>@mes.Entregados</td><td><span class="d-inline-block bg-success rounded me-2" style="height:10px;width:@(AnchoBarra(mes.Devueltos, flujo))px" aria-hidden="true"></span>@mes.Devueltos</td><td class="text-end">@((mes.Entregados-mes.Devueltos).ToString("+0;-0;0"))</td></tr>}
+            </tbody></table></div>
+            <h3 class="h5">Flujo por gas</h3>
+            <div class="table-responsive"><table class="table mb-0"><thead><tr><th>Gas</th><th class="text-end">Entregados</th><th class="text-end">Devueltos</th></tr></thead><tbody>
+                @if(flujo.Gases.Count == 0){<tr><td colspan="3" class="text-muted">No hay movimientos en este período.</td></tr>}
+                @foreach(var gas in flujo.Gases){<tr><td>@gas.Gas</td><td class="text-end">@gas.Entregados</td><td class="text-end">@gas.Devueltos</td></tr>}
+            </tbody></table></div>
+        }
+    </section>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3"><h2 class="h5 mb-0">Días por tubo</h2><div><label class="me-2" for="estadoEstadistica">Mostrar</label><select id="estadoEstadistica" class="form-select d-inline-block w-auto" @bind="estado"><option value="Actuales">Tubos actuales</option><option value="Devueltos">Devueltos</option><option value="Todos">Todo el historial</option></select></div></div>
+    <p class="text-muted small">Días calendario de Argentina desde la entrega; el mismo día cuenta como 0. En los devueltos, el conteo termina al confirmar la devolución.</p>
+    <div class="card shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Tubo</th><th>Gas</th><th>Capacidad</th><th>Modalidad</th><th>Remito / operación</th><th>Entrega</th><th>Devolución</th><th class="text-end">Días con el cliente</th></tr></thead><tbody>
+    @if(!Filas.Any()){<tr><td colspan="8" class="text-center text-muted py-4">No hay tubos para esta selección.</td></tr>}
+    @foreach(var tubo in Filas){<tr><td><strong>@tubo.Codigo</strong></td><td>@tubo.Gas</td><td>@tubo.Capacidad</td><td>@tubo.Modalidad</td><td>@tubo.Remito</td><td>@tubo.EntregaUtc.EnArgentina().ToString("dd/MM/yyyy")</td><td>@if(tubo.DevolucionUtc.HasValue){@tubo.DevolucionUtc.Value.EnArgentina().ToString("dd/MM/yyyy")}else{<span class="badge bg-warning text-dark">Con el cliente</span>}</td><td class="text-end"><strong>@tubo.DiasConCliente</strong></td></tr>}
+    </tbody></table></div></div>
+}
+@code {
+    [SupplyParameterFromQuery(Name = "clienteId")] public int? ClienteId { get; set; }
+    private IReadOnlyList<ClienteDto> clientes = [];
+    private int? seleccionadoId;
+    private EstadisticasClienteDto? estadisticas;
+    private bool cargando = true;
+    private string? error;
+    private string estado = "Actuales";
+    private int solicitud;
+    private DateOnly hasta = DateOnly.FromDateTime(HoraArgentina.Hoy);
+    private DateOnly desde = new DateOnly(HoraArgentina.Hoy.Year, HoraArgentina.Hoy.Month, 1).AddMonths(-11);
+    private static int AnchoBarra(int cantidad, FlujoCliente flujo) => cantidad == 0 ? 0 : Math.Max(2, (int)(120.0 * cantidad / Math.Max(1, flujo.Meses.Max(x => Math.Max(x.Entregados, x.Devueltos)))));
+    private IEnumerable<EstadisticaTuboClienteDto> Filas => (estadisticas?.Tubos ?? [])
+        .Where(x => estado == "Todos" || (estado == "Actuales" ? !x.DevolucionUtc.HasValue : x.DevolucionUtc.HasValue))
+        .OrderByDescending(x => x.DiasConCliente).ThenBy(x => x.Codigo);
+    protected override async Task OnInitializedAsync()
+    {
+        try { clientes = await ClientesApi.ObtenerTodosAsync(); await Seleccionar(ClienteId); }
+        catch { error = "No se pudieron cargar los clientes. Recargá la página para intentar nuevamente."; cargando = false; }
+    }
+    private async Task Seleccionar(int? id)
+    {
+        seleccionadoId = id; estado = "Actuales";
+        await Actualizar();
+    }
+    private async Task Actualizar()
+    {
+        var turno = ++solicitud;
+        var id = seleccionadoId;
+        estadisticas = null; error = null; cargando = id.HasValue;
+        if (!id.HasValue) return;
+        try { var resultado = await Api.EstadisticasCliente(id.Value); if (turno == solicitud) estadisticas = resultado; }
+        catch { if (turno == solicitud) error = "No se pudieron cargar las estadísticas. Intentá actualizar nuevamente."; }
+        finally { if (turno == solicitud) cargando = false; }
+    }
+}

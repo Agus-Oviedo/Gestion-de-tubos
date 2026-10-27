@@ -30,6 +30,7 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
     {
         if (dto.FechaVencimiento <= dto.FechaRealizacion) throw new InvalidOperationException("El vencimiento debe ser posterior a la realización.");
         var cilindro = await db.Tubos.FirstOrDefaultAsync(x => x.Id == dto.CilindroId, ct) ?? throw new InvalidOperationException("No se encontró el cilindro.");
+        if(cilindro.EstadoDisponibilidad==EstadoDisponibilidad.EnBateria)throw new InvalidOperationException("Retirá el tubo de la batería antes de registrar una prueba hidráulica.");
         var prueba = new PruebaHidraulica { TuboId = dto.CilindroId, FechaRealizacion = dto.FechaRealizacion, FechaVencimiento = dto.FechaVencimiento, Aprobada = dto.Aprobada, EntidadRealizadora = dto.EntidadRealizadora.Trim(), NumeroCertificado = Limpiar(dto.NumeroCertificado), Observaciones = Limpiar(dto.Observaciones) };
         db.PruebasHidraulicas.Add(prueba);
         var estadoAnterior = Estado(cilindro);
@@ -45,7 +46,7 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
 
     public async Task<IReadOnlyList<OperacionDto>> OperacionesAsync(bool soloAbiertas, CancellationToken ct)
     {
-        var q = db.OperacionesCilindro.AsNoTracking().Include(x => x.Cliente).Include(x => x.Tubo).Include(x => x.RemitoDevolucion).Include(x => x.RemitoEntrega).AsQueryable();
+        var q = db.OperacionesCilindro.IgnoreQueryFilters().AsNoTracking().Where(x => x.Cliente.Activo && x.Tubo.Activo).Include(x => x.Cliente).Include(x => x.Tubo).ThenInclude(t => t.TipoGas).Include(x => x.Tubo).ThenInclude(t => t.CapacidadTubo).Include(x => x.RemitoDevolucion).Include(x => x.RemitoEntrega).AsQueryable();
         if (soloAbiertas) q = q.Where(x => x.FechaDevolucionUtc == null);
         return (await q.OrderByDescending(x => x.FechaHoraUtc).ToListAsync(ct)).Select(MapearOperacion).ToList();
     }
@@ -53,7 +54,8 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
     public async Task<OperacionDto> EntregarAsync(EntregaGuardarDto dto, CancellationToken ct)
     {
         var cliente = await db.Clientes.FirstOrDefaultAsync(x => x.Id == dto.ClienteId, ct) ?? throw new InvalidOperationException("No se encontró el cliente.");
-        var cilindro = await db.Tubos.Include(x => x.Ubicacion).FirstOrDefaultAsync(x => x.Id == dto.CilindroId, ct) ?? throw new InvalidOperationException("No se encontró el cilindro.");
+        var cilindro = await db.Tubos.Include(x => x.Ubicacion).Include(x => x.TipoGas).Include(x => x.CapacidadTubo).FirstOrDefaultAsync(x => x.Id == dto.CilindroId, ct) ?? throw new InvalidOperationException("No se encontró el cilindro.");
+        if (cilindro.TipoPropietario == TipoPropietarioTubo.Empresa && cilindro.EstadoContenido != EstadoContenido.Lleno) throw new InvalidOperationException("Solo se pueden entregar tubos propios llenos.");
         if (cilindro.EstadoDisponibilidad != EstadoDisponibilidad.Disponible) throw new InvalidOperationException("El cilindro no está disponible.");
         if (cilindro.TipoPropietario == TipoPropietarioTubo.Cliente && cilindro.ClientePropietarioId != dto.ClienteId) throw new InvalidOperationException("Este cilindro pertenece a otro cliente y no puede ser entregado.");
         var ultimaPrueba = await db.PruebasHidraulicas.Where(x => x.TuboId == cilindro.Id && x.Aprobada).OrderByDescending(x => x.FechaVencimiento).FirstOrDefaultAsync(ct);
@@ -70,13 +72,13 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
 
     public async Task<OperacionDto> RecibirAsync(RecepcionGuardarDto dto, string usuario, CancellationToken ct)
     {
-        var op = await db.OperacionesCilindro.Include(x => x.Cliente).Include(x => x.Tubo).Include(x => x.RemitoDevolucion).Include(x => x.RemitoEntrega).FirstOrDefaultAsync(x => x.Id == dto.OperacionId, ct) ?? throw new InvalidOperationException("No se encontró la operación.");
+        var op = await db.OperacionesCilindro.IgnoreQueryFilters().Where(x => x.Cliente.Activo && x.Tubo.Activo).Include(x => x.Cliente).Include(x => x.Tubo).ThenInclude(t => t.TipoGas).Include(x => x.Tubo).ThenInclude(t => t.CapacidadTubo).Include(x => x.RemitoDevolucion).Include(x => x.RemitoEntrega).FirstOrDefaultAsync(x => x.Id == dto.OperacionId, ct) ?? throw new InvalidOperationException("No se encontró la operación.");
         if (op.FechaDevolucionUtc.HasValue) throw new InvalidOperationException("La operación ya fue cerrada.");
         if (op.RemitoDevolucion is not null) throw new InvalidOperationException("La devolución ya tiene un remito emitido.");
-        if (!await db.Ubicaciones.AnyAsync(x => x.Id == dto.UbicacionDestinoId, ct)) throw new InvalidOperationException("La ubicación no existe.");
+        if (!await db.Ubicaciones.AnyAsync(x => x.Id == dto.UbicacionDestinoId && x.EsInterna && x.GasBateria==null, ct)) throw new InvalidOperationException("La ubicación no existe.");
         var cilindro = op.Tubo; var anterior = Estado(cilindro); var origen = cilindro.UbicacionId;
-        cilindro.EstadoFisico = (EstadoFisico)dto.EstadoFisico; cilindro.EstadoContenido = (EstadoContenido)dto.EstadoContenido;
-        cilindro.EstadoDisponibilidad = dto.RequiereInspeccion ? EstadoDisponibilidad.PendienteInspeccion : EstadoDisponibilidad.Disponible; cilindro.UbicacionId = dto.UbicacionDestinoId;
+        cilindro.EstadoFisico = (EstadoFisico)dto.EstadoFisico; cilindro.EstadoContenido = cilindro.TipoPropietario == TipoPropietarioTubo.Empresa ? EstadoContenido.Vacio : (EstadoContenido)dto.EstadoContenido;
+        cilindro.EstadoDisponibilidad = cilindro.EstadoFisico is EstadoFisico.Danado or EstadoFisico.Inutilizable ? EstadoDisponibilidad.EnMantenimiento : dto.RequiereInspeccion ? EstadoDisponibilidad.PendienteInspeccion : EstadoDisponibilidad.Disponible; cilindro.UbicacionId = dto.UbicacionDestinoId;
         op.FechaDevolucionUtc = DateTime.UtcNow; op.Estado = "Cerrada";
         var siguiente = (await db.RemitosDevolucion.MaxAsync(x => (long?)x.Id, ct) ?? 0) + 1;
         op.RemitoDevolucion = new RemitoDevolucion
@@ -127,7 +129,7 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
     {
         var pendiente=await db.DevolucionesLote.AsNoTracking().FirstOrDefaultAsync(x=>x.RemitoEntregaId==dto.RemitoEntregaId&&x.Estado=="Pendiente de firma",ct);if(pendiente is not null)return (await ObtenerDevolucionLoteAsync(pendiente.Id,ct))!;
         var ids=dto.OperacionIds.Distinct().ToList();if(ids.Count==0)throw new InvalidOperationException("Seleccioná al menos un tubo para devolver.");
-        if(!await db.Ubicaciones.AnyAsync(x=>x.Id==dto.UbicacionDestinoId,ct))throw new InvalidOperationException("Seleccioná una ubicación de ingreso válida.");
+        if(!await db.Ubicaciones.AnyAsync(x=>x.Id==dto.UbicacionDestinoId&&x.EsInterna&&x.GasBateria==null,ct))throw new InvalidOperationException("Seleccioná una ubicación de ingreso válida.");
         var operaciones=await db.OperacionesCilindro.Include(x=>x.Cliente).Include(x=>x.Tubo).ThenInclude(x=>x.TipoGas).Include(x=>x.Tubo).ThenInclude(x=>x.CapacidadTubo).Include(x=>x.RemitoEntrega).Where(x=>ids.Contains(x.Id)).ToListAsync(ct);
         if(operaciones.Count!=ids.Count||operaciones.Any(x=>x.FechaDevolucionUtc!=null))throw new InvalidOperationException("Uno de los tubos ya no está pendiente de devolución.");
         if(operaciones.Any(x=>x.RemitoEntregaId!=dto.RemitoEntregaId))throw new InvalidOperationException("Todos los tubos deben pertenecer al mismo remito de entrega.");
@@ -149,14 +151,31 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
         var lote=await db.DevolucionesLote.Include(x=>x.Cliente).Include(x=>x.RemitoEntrega).Include(x=>x.Detalles).ThenInclude(x=>x.OperacionCilindro).ThenInclude(x=>x.Tubo).ThenInclude(x=>x.TipoGas).Include(x=>x.Detalles).ThenInclude(x=>x.OperacionCilindro).ThenInclude(x=>x.Tubo).ThenInclude(x=>x.CapacidadTubo).FirstOrDefaultAsync(x=>x.Id==id,ct)??throw new InvalidOperationException("No se encontró el remito de devolución.");
         if(lote.Estado!="Pendiente de firma")throw new InvalidOperationException("El remito de devolución ya fue confirmado.");
         if(!dto.FirmaDataUrl.StartsWith("data:image/png;base64,",StringComparison.Ordinal)||dto.FirmaDataUrl.Length<100)throw new InvalidOperationException("La firma no es válida.");
-        foreach(var d in lote.Detalles){var op=d.OperacionCilindro;if(op.FechaDevolucionUtc.HasValue)throw new InvalidOperationException("Uno de los tubos ya fue devuelto.");var tubo=op.Tubo;var anterior=Estado(tubo);var origen=tubo.UbicacionId;tubo.EstadoFisico=(EstadoFisico)d.EstadoFisico;tubo.EstadoContenido=(EstadoContenido)d.EstadoContenido;tubo.EstadoDisponibilidad=d.RequiereInspeccion?EstadoDisponibilidad.PendienteInspeccion:EstadoDisponibilidad.Disponible;tubo.UbicacionId=d.UbicacionDestinoId;op.FechaDevolucionUtc=DateTime.UtcNow;op.Estado="Cerrada";db.MovimientosCilindro.Add(MovimientoUsuario(tubo,"Devolución",origen,d.UbicacionDestinoId,op.ClienteId,$"{lote.Numero}. {lote.Observaciones}",usuario,anterior));}
+        foreach(var d in lote.Detalles){var op=d.OperacionCilindro;if(op.FechaDevolucionUtc.HasValue)throw new InvalidOperationException("Uno de los tubos ya fue devuelto.");var tubo=op.Tubo;var anterior=Estado(tubo);var origen=tubo.UbicacionId;tubo.EstadoFisico=(EstadoFisico)d.EstadoFisico;tubo.EstadoContenido=tubo.TipoPropietario==TipoPropietarioTubo.Empresa?EstadoContenido.Vacio:(EstadoContenido)d.EstadoContenido;tubo.EstadoDisponibilidad=tubo.EstadoFisico is EstadoFisico.Danado or EstadoFisico.Inutilizable?EstadoDisponibilidad.EnMantenimiento:d.RequiereInspeccion?EstadoDisponibilidad.PendienteInspeccion:EstadoDisponibilidad.Disponible;tubo.UbicacionId=d.UbicacionDestinoId;op.FechaDevolucionUtc=DateTime.UtcNow;op.Estado="Cerrada";db.MovimientosCilindro.Add(MovimientoUsuario(tubo,"Devolución",origen,d.UbicacionDestinoId,op.ClienteId,$"{lote.Numero}. {lote.Observaciones}",usuario,anterior));}
         lote.PersonaEntrega=dto.PersonaEntrega.Trim();lote.DniEntrega=dto.DniEntrega.Trim();lote.FirmaDataUrl=dto.FirmaDataUrl;lote.FechaConfirmacionUtc=DateTime.UtcNow;lote.Estado="Confirmado";lote.UsuarioReceptor=usuario;await db.SaveChangesAsync(ct);return MapearDevolucion(lote);
     }
 
+    public async Task<EstadisticasClienteDto?> EstadisticasClienteAsync(int clienteId, CancellationToken ct)
+    {
+        var cliente = await db.Clientes.IgnoreQueryFilters().AsNoTracking().FirstOrDefaultAsync(x => x.Id == clienteId, ct);
+        if (cliente is null) return null;
+        var operaciones = await db.OperacionesCilindro.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.ClienteId == clienteId)
+            .Include(x => x.Tubo).ThenInclude(x => x.TipoGas)
+            .Include(x => x.Tubo).ThenInclude(x => x.CapacidadTubo)
+            .Include(x => x.RemitoEntrega)
+            .OrderByDescending(x => x.FechaHoraUtc).ToListAsync(ct);
+        var corte = DateTime.UtcNow;
+        var tubos = operaciones.Select(x => new EstadisticaTuboClienteDto(x.Id, x.TuboId,
+            x.Tubo.CodigoInterno, x.Tubo.TipoGas.Nombre, $"{x.Tubo.CapacidadTubo.Valor} {x.Tubo.CapacidadTubo.Unidad}",
+            x.Tipo, x.RemitoEntrega?.Numero ?? x.Numero, x.FechaHoraUtc, x.FechaDevolucionUtc,
+            CalculadoraAlquiler.Calcular(x.FechaHoraUtc, x.FechaDevolucionUtc, 0, x.Tipo, corte).DiasTranscurridos)).ToList();
+        return new(clienteId, NombreCliente(cliente), corte, tubos);
+    }
     public async Task<DashboardDto> DashboardAsync(CancellationToken ct)
     {
         var hoy = DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy); var proximas = hoy.AddDays(30);
-        var propios=await db.Tubos.CountAsync(x=>x.TipoPropietario==TipoPropietarioTubo.Empresa,ct);var propiosPlanta=await db.Tubos.CountAsync(x=>x.TipoPropietario==TipoPropietarioTubo.Empresa&&x.EstadoDisponibilidad!=EstadoDisponibilidad.EnPoderCliente&&x.EstadoDisponibilidad!=EstadoDisponibilidad.EnReparto&&x.EstadoDisponibilidad!=EstadoDisponibilidad.Extraviado,ct);var propiosClientes=await db.Tubos.CountAsync(x=>x.TipoPropietario==TipoPropietarioTubo.Empresa&&x.EstadoDisponibilidad==EstadoDisponibilidad.EnPoderCliente,ct);var ajenosPlanta=await db.Tubos.CountAsync(x=>x.TipoPropietario==TipoPropietarioTubo.Cliente&&x.EstadoDisponibilidad!=EstadoDisponibilidad.EnPoderCliente&&x.EstadoDisponibilidad!=EstadoDisponibilidad.EnReparto&&x.EstadoDisponibilidad!=EstadoDisponibilidad.Extraviado,ct);var enCarga=await db.Tubos.CountAsync(x=>x.EstadoDisponibilidad==EstadoDisponibilidad.EnCarga,ct);var enReparto=await db.Tubos.CountAsync(x=>x.EstadoDisponibilidad==EstadoDisponibilidad.EnReparto,ct);var inspeccion=await db.Tubos.CountAsync(x=>x.EstadoDisponibilidad==EstadoDisponibilidad.PendienteInspeccion,ct);
+        var propios=await db.Tubos.CountAsync(x=>x.TipoPropietario==TipoPropietarioTubo.Empresa,ct);var propiosPlanta=await db.Tubos.CountAsync(x=>x.TipoPropietario==TipoPropietarioTubo.Empresa&&x.EstadoDisponibilidad!=EstadoDisponibilidad.EnPoderCliente&&x.EstadoDisponibilidad!=EstadoDisponibilidad.EnReparto&&x.EstadoDisponibilidad!=EstadoDisponibilidad.Extraviado&&x.EstadoDisponibilidad!=EstadoDisponibilidad.EnviadoACarga,ct);var propiosClientes=await db.Tubos.CountAsync(x=>x.TipoPropietario==TipoPropietarioTubo.Empresa&&x.EstadoDisponibilidad==EstadoDisponibilidad.EnPoderCliente,ct);var ajenosPlanta=await db.Tubos.CountAsync(x=>x.TipoPropietario==TipoPropietarioTubo.Cliente&&x.EstadoDisponibilidad!=EstadoDisponibilidad.EnPoderCliente&&x.EstadoDisponibilidad!=EstadoDisponibilidad.EnReparto&&x.EstadoDisponibilidad!=EstadoDisponibilidad.Extraviado,ct);var enCarga=await db.Tubos.CountAsync(x=>x.EstadoDisponibilidad==EstadoDisponibilidad.EnCarga||x.EstadoDisponibilidad==EstadoDisponibilidad.EnviadoACarga,ct);var enReparto=await db.Tubos.CountAsync(x=>x.EstadoDisponibilidad==EstadoDisponibilidad.EnReparto,ct);var inspeccion=await db.Tubos.CountAsync(x=>x.EstadoDisponibilidad==EstadoDisponibilidad.PendienteInspeccion,ct);
         var ultimas = await db.PruebasHidraulicas.Where(x=>x.Tubo.EstadoDisponibilidad!=EstadoDisponibilidad.EnPoderCliente).GroupBy(x => x.TuboId).Select(g => g.OrderByDescending(x => x.FechaVencimiento).First()).ToListAsync(ct);
         var vencidas = ultimas.Count(x => !x.Aprobada || x.FechaVencimiento < hoy); var cerca = ultimas.Count(x => x.Aprobada && x.FechaVencimiento >= hoy && x.FechaVencimiento <= proximas);
         var abiertas = await db.OperacionesCilindro.CountAsync(x => x.FechaDevolucionUtc == null&&x.Tubo.TipoPropietario==TipoPropietarioTubo.Empresa, ct); var movimientos = await MovimientosAsync(null, ct);
@@ -193,7 +212,7 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
     {
         var c=await db.Tubos.FirstOrDefaultAsync(x=>x.Id==dto.CilindroId,ct)??throw new InvalidOperationException("No se encontró el cilindro.");
         if(c.TipoPropietario!=TipoPropietarioTubo.Cliente||c.ClientePropietarioId!=dto.ClienteId)throw new InvalidOperationException("El cilindro no pertenece al cliente seleccionado.");
-        if(!await db.Ubicaciones.AnyAsync(x=>x.Id==dto.UbicacionDestinoId,ct))throw new InvalidOperationException("La ubicación de ingreso no existe.");
+        if(!await db.Ubicaciones.AnyAsync(x=>x.Id==dto.UbicacionDestinoId&&x.EsInterna&&x.GasBateria==null,ct))throw new InvalidOperationException("La ubicación de ingreso no existe.");
         if(c.EstadoDisponibilidad is EstadoDisponibilidad.Reservado or EstadoDisponibilidad.EnReparto)throw new InvalidOperationException("El cilindro está vinculado a una salida activa.");
         var destino=dto.Motivo switch{"Carga"=>EstadoDisponibilidad.EnCarga,"Inspeccion"=>EstadoDisponibilidad.PendienteInspeccion,"Mantenimiento"=>EstadoDisponibilidad.EnMantenimiento,"PruebaHidraulica"=>EstadoDisponibilidad.EnPruebaHidraulica,_=>throw new InvalidOperationException("Motivo de ingreso inválido.")};
         var anterior=Estado(c);var origen=c.UbicacionId;c.EstadoFisico=(EstadoFisico)dto.EstadoFisico;c.EstadoContenido=dto.Motivo=="Carga"?EstadoContenido.Vacio:(EstadoContenido)dto.EstadoContenido;c.EstadoDisponibilidad=destino;c.UbicacionId=dto.UbicacionDestinoId;
@@ -207,8 +226,8 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
     private static MovimientoCilindro Movimiento(Tubo c, string tipo, int? origen, int? destino, int? cliente, string? obs, string? anterior = null) => new() { TuboId = c.Id, Tipo = tipo, UbicacionOrigenId = origen, UbicacionDestinoId = destino, ClienteId = cliente, EstadoAnterior = anterior, EstadoPosterior = Estado(c), Observaciones = Limpiar(obs) };
     private static string Estado(Tubo x) => $"Físico={(int)x.EstadoFisico};Contenido={(int)x.EstadoContenido};Disponibilidad={(int)x.EstadoDisponibilidad};Ubicación={x.UbicacionId}";
     private static PruebaHidraulicaDto MapearPrueba(PruebaHidraulica x) { var hoy = DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy); var e = !x.Aprobada || x.FechaVencimiento < hoy ? "Vencida/No aprobada" : x.FechaVencimiento <= hoy.AddDays(30) ? "Próxima a vencer" : "Vigente"; return new(x.Id, x.TuboId, x.Tubo.CodigoInterno, x.FechaRealizacion, x.FechaVencimiento, x.Aprobada, e, x.EntidadRealizadora, x.NumeroCertificado, x.Observaciones); }
-    private static OperacionDto MapearOperacion(OperacionCilindro x) => new(x.Id, x.Numero, x.Tipo, x.ClienteId, NombreCliente(x.Cliente), x.TuboId, x.Tubo.CodigoInterno, x.FechaHoraUtc, x.Estado, x.FechaLimite, x.FechaDevolucionUtc, x.PersonaRecibe, x.Observaciones, x.RemitoDevolucion?.Numero, x.RemitoEntrega?.Numero,x.RemitoEntregaId);
-    private static DevolucionLoteDto MapearDevolucion(DevolucionLote x)=>new(x.Id,x.Numero,x.RemitoEntregaId,x.RemitoEntrega.Numero,x.ClienteId,NombreCliente(x.Cliente),x.FechaCreacionUtc,x.FechaConfirmacionUtc,x.Estado,x.PersonaEntrega,x.DniEntrega,x.FirmaDataUrl,x.Observaciones,x.Detalles.Select(d=>new DevolucionLoteDetalleDto(d.OperacionCilindroId,d.OperacionCilindro.TuboId,d.OperacionCilindro.Tubo.CodigoInterno,d.OperacionCilindro.Tubo.TipoGas.Nombre,$"{d.OperacionCilindro.Tubo.CapacidadTubo.Valor} {d.OperacionCilindro.Tubo.CapacidadTubo.Unidad}")).ToList());
+    private static OperacionDto MapearOperacion(OperacionCilindro x) => new(x.Id, x.Numero, x.Tipo, x.ClienteId, NombreCliente(x.Cliente), x.TuboId, x.Tubo.CodigoInterno, x.FechaHoraUtc, x.Estado, x.FechaLimite, x.FechaDevolucionUtc, x.PersonaRecibe, x.Observaciones, x.RemitoDevolucion?.Numero, x.RemitoEntrega?.Numero,x.RemitoEntregaId,x.Tubo.TipoGas?.Nombre??"Sin gas registrado",x.Tubo.CapacidadTubo is null?"Sin capacidad registrada":$"{x.Tubo.CapacidadTubo.Valor:0.##} {x.Tubo.CapacidadTubo.Unidad}");
+    private static DevolucionLoteDto MapearDevolucion(DevolucionLote x)=>new(x.Id,x.Numero,x.RemitoEntregaId,x.RemitoEntrega.Numero,x.ClienteId,NombreCliente(x.Cliente),x.FechaCreacionUtc,x.FechaConfirmacionUtc,x.Estado,x.PersonaEntrega,x.DniEntrega,x.FirmaDataUrl,x.Observaciones,x.Detalles.Select(d=>new DevolucionLoteDetalleDto(d.OperacionCilindroId,d.OperacionCilindro.TuboId,d.OperacionCilindro.Tubo.CodigoInterno,d.OperacionCilindro.Tubo.TipoGas.Nombre,$"{d.OperacionCilindro.Tubo.CapacidadTubo.Valor} {d.OperacionCilindro.Tubo.CapacidadTubo.Unidad}", CalculadoraAlquiler.Calcular(d.OperacionCilindro.FechaHoraUtc, d.OperacionCilindro.FechaDevolucionUtc, 0, "Alquiler", x.FechaConfirmacionUtc ?? DateTime.UtcNow).DiasTranscurridos)).ToList());
     private static string NombreCliente(Cliente x) => x.RazonSocial ?? $"{x.Apellido}, {x.Nombre}".Trim(' ', ',');
     private static string? Limpiar(string? x) => string.IsNullOrWhiteSpace(x) ? null : x.Trim();
 }

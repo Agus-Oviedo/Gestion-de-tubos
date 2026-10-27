@@ -20,7 +20,7 @@ public sealed class TuboGuardarDto:IValidatableObject
  [Range(1,int.MaxValue,ErrorMessage="Seleccioná el gas.")]public int TipoGasId{get;set;} [Range(1,int.MaxValue,ErrorMessage="Seleccioná la capacidad.")]public int CapacidadTuboId{get;set;}
  [StringLength(100)]public string? Marca{get;set;} [StringLength(150)]public string? Fabricante{get;set;} public DateOnly? FechaFabricacion{get;set;}
  [Range(1,4)]public int TipoPropietario{get;set;}=1; public int? ClientePropietarioId{get;set;} [StringLength(200)]public string? NombrePropietarioExterno{get;set;}
- [Range(1,4)]public int EstadoFisico{get;set;}=1; [Range(1,4)]public int EstadoContenido{get;set;}=4; [Range(1,10)]public int EstadoDisponibilidad{get;set;}=6;
+ [Range(1,4)]public int EstadoFisico{get;set;}=1; [Range(1,4)]public int EstadoContenido{get;set;}=1; [Range(1,10)]public int EstadoDisponibilidad{get;set;}=6;
  public int UbicacionId{get;set;} [StringLength(1000)]public string? Observaciones{get;set;}
  public bool RegistrarPruebaInicial{get;set;}
  public DateOnly FechaPruebaHidraulica{get;set;}=DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy);

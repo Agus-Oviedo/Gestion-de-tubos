@@ -1,50 +1,47 @@
 @inject AutenticacionApiService Auth
 @inject NavigationManager Navigation
-
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid d-flex flex-nowrap align-items-center justify-content-between">
-        <a class="navbar-brand flex-shrink-1 me-2" style="width:auto" href=""><img src="oxigeno-norte-logo.png" alt="Oxígeno Norte" /></a>
-        <button type="button" title="Abrir menú" aria-label="Abrir menú de navegación" class="navbar-toggler flex-shrink-0 text-white fw-bold" @onclick="ToggleNavMenu"><span aria-hidden="true">☰</span> MENÚ</button>
-    </div>
-</div>
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <AuthorizeView Context="sesion">
-        <Authorized>
-            <nav class="flex-column">
-                <div class="menu-caption px-3">CONTROL DE STOCK</div>
-                <div class="nav-item px-3"><NavLink class="nav-link" href="" Match="NavLinkMatch.All"><span class="bi bi-house-door-fill-nav-menu"></span> Resumen</NavLink></div>
-                <details class="configuration-menu px-3" open="@EnOperaciones" @onclick:stopPropagation>
-                    <summary><span class="configuration-icon" aria-hidden="true">↔</span> Operaciones</summary>
-                    <div class="nav-item"><NavLink class="nav-link" href="pedidos" @onclick="ToggleNavMenu"><span aria-hidden="true">📦</span> Entregas</NavLink></div>
-                    <div class="nav-item"><NavLink class="nav-link" href="recepciones" @onclick="ToggleNavMenu"><span aria-hidden="true">↩</span> Devoluciones</NavLink></div>
-                    <div class="nav-item"><NavLink class="nav-link" href="remitos" @onclick="ToggleNavMenu"><span aria-hidden="true">📄</span> Historial de remitos</NavLink></div>
-                </details>
-                <details class="configuration-menu px-3" open="@EnGestion" @onclick:stopPropagation>
-                    <summary><span class="configuration-icon" aria-hidden="true">▦</span> Gestión</summary>
-                    <div class="nav-item"><NavLink class="nav-link" href="cilindros" @onclick="ToggleNavMenu"><span class="bi bi-list-nested-nav-menu"></span> Tubos</NavLink></div>
-                    <div class="nav-item"><NavLink class="nav-link" href="clientes" @onclick="ToggleNavMenu"><span aria-hidden="true">👥</span> Clientes</NavLink></div>
-                </details>
-                <AuthorizeView Roles="Superadministrador,Administrador" Context="configuracionRol">
-                    <details class="configuration-menu px-3 mt-3" open="@EnConfiguracion" @onclick:stopPropagation>
-                        <summary><span class="configuration-icon" aria-hidden="true">⚙</span> Configuración</summary>
-                        <div class="nav-item"><NavLink class="nav-link" href="usuarios" @onclick="ToggleNavMenu"><span aria-hidden="true">👥</span> Usuarios</NavLink></div>
-                        <AuthorizeView Roles="Superadministrador" Context="datosStockRol">
-                            <div class="nav-item"><NavLink class="nav-link" href="catalogos" @onclick="ToggleNavMenu"><span aria-hidden="true">▦</span> Datos del stock</NavLink></div>
-                        </AuthorizeView>
-                    </details>
-                </AuthorizeView>
-                <div class="px-3 mt-4"><div class="text-white-50 small mb-2">@sesion.User.Identity?.Name</div><button class="btn btn-outline-light btn-sm w-100" @onclick="Salir">Cerrar sesión</button></div>
-            </nav>
-        </Authorized>
-    </AuthorizeView>
-</div>
-
-@code {
-    private bool collapseNavMenu = true;
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-    private bool EnGestion => Navigation.Uri.Contains("/cilindros", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/clientes", StringComparison.OrdinalIgnoreCase);
-    private bool EnOperaciones => Navigation.Uri.Contains("/pedidos", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/recepciones", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/remitos", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/devoluciones", StringComparison.OrdinalIgnoreCase);
-    private bool EnConfiguracion => Navigation.Uri.Contains("/usuarios", StringComparison.OrdinalIgnoreCase) || Navigation.Uri.Contains("/catalogos", StringComparison.OrdinalIgnoreCase);
-    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
-    private async Task Salir() { await Auth.LogoutAsync(); Navigation.NavigateTo("login"); }
+@implements IDisposable
+<div class="top-row ps-3 navbar navbar-dark"><div class="container-fluid d-flex flex-nowrap align-items-center justify-content-between"><a class="navbar-brand flex-shrink-1 me-2" style="width:auto" href=""><img src="oxigeno-norte-logo.png" alt="Oxígeno Norte"/></a><button type="button" title="Abrir menú" aria-label="Abrir menú de navegación" class="navbar-toggler flex-shrink-0 text-white fw-bold" @onclick="ToggleNavMenu"><span aria-hidden="true">☰</span> MENÚ</button></div></div>
+<div class="@NavMenuCssClass nav-scrollable"><AuthorizeView Context="sesion"><Authorized><nav class="flex-column" aria-label="Menú principal">
+<div class="menu-caption px-3">CONTROL DE STOCK</div>
+<div class="nav-item px-3"><NavLink class="nav-link" href="" Match="NavLinkMatch.All" @onclick="CerrarMenu"><MenuIcono Nombre="home"/><span>Resumen</span></NavLink></div>
+<details class="configuration-menu px-3" open="@EnEntregas"><summary><MenuIcono Nombre="envio"/><span>Entregas a clientes</span></summary>
+<div class="nav-item"><NavLink class="nav-link" href="pedidos" @onclick="CerrarMenu"><MenuIcono Nombre="envio"/><span>Entregas</span></NavLink></div>
+<div class="nav-item"><NavLink class="nav-link" href="recepciones" @onclick="CerrarMenu"><MenuIcono Nombre="recepcion"/><span>Devoluciones</span></NavLink></div>
+<div class="nav-item"><NavLink class="nav-link" href="remitos" @onclick="CerrarMenu"><MenuIcono Nombre="documento"/><span>Historial de remitos</span></NavLink></div>
+</details>
+<details class="configuration-menu px-3" open="@EnInventario"><summary><MenuIcono Nombre="stock"/><span>Inventario</span></summary>
+<div class="nav-item"><NavLink class="nav-link" href="cilindros" @onclick="CerrarMenu"><MenuIcono Nombre="stock"/><span>Todos los tubos</span></NavLink></div>
+<div class="nav-item"><NavLink class="nav-link" href="planchadas" @onclick="CerrarMenu"><MenuIcono Nombre="carga"/><span>Planchadas y baterías</span></NavLink></div>
+</details>
+<details class="configuration-menu px-3" open="@EnClientes"><summary><MenuIcono Nombre="clientes"/><span>Clientes</span></summary>
+<div class="nav-item"><NavLink class="nav-link" href="clientes" @onclick="CerrarMenu"><MenuIcono Nombre="clientes"/><span>Clientes</span></NavLink></div>
+<div class="nav-item"><NavLink class="nav-link" href="estadisticas-clientes" @onclick="CerrarMenu"><MenuIcono Nombre="estadisticas"/><span>Estadísticas y flujo</span></NavLink></div>
+</details>
+<details class="configuration-menu px-3" open="@EnCarga"><summary><MenuIcono Nombre="carga"/><span>Carga externa</span></summary>
+<div class="nav-item"><NavLink class="nav-link" href="cargas/preparar" @onclick="CerrarMenu"><MenuIcono Nombre="envio"/><span>Preparar envío</span></NavLink></div>
+<div class="nav-item"><NavLink class="nav-link" href="cargas/envios" @onclick="CerrarMenu"><MenuIcono Nombre="recepcion"/><span>Recibir tubos</span></NavLink></div>
+<div class="nav-item"><NavLink class="nav-link" href="cargas/historial" @onclick="CerrarMenu"><MenuIcono Nombre="documento"/><span>Historial de cargas</span></NavLink></div>
+</details>
+<AuthorizeView Roles="Superadministrador,Administrador" Context="configuracionRol"><details class="configuration-menu px-3 mt-3" open="@EnConfiguracion"><summary><MenuIcono Nombre="ajustes"/><span>Configuración</span></summary>
+<div class="nav-item"><NavLink class="nav-link" href="usuarios" @onclick="CerrarMenu"><MenuIcono Nombre="clientes"/><span>Usuarios</span></NavLink></div>
+<div class="nav-item"><NavLink class="nav-link" href="auditoria-remitos" @onclick="CerrarMenu"><MenuIcono Nombre="stock"/><span>Auditoría de remitos</span></NavLink></div>
+<AuthorizeView Roles="Superadministrador" Context="datosStockRol"><div class="nav-item"><NavLink class="nav-link" href="catalogos" @onclick="CerrarMenu"><MenuIcono Nombre="stock"/><span>Datos del stock</span></NavLink></div></AuthorizeView>
+</details></AuthorizeView>
+<div class="px-3 mt-4"><div class="text-white-50 small mb-2">@sesion.User.Identity?.Name</div><button class="btn btn-outline-light btn-sm w-100" @onclick="Salir">Cerrar sesión</button></div>
+</nav></Authorized></AuthorizeView></div>
+@code{
+ private bool collapseNavMenu=true;private string?NavMenuCssClass=>collapseNavMenu?"collapse":null;
+ private string Ruta=>Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].TrimEnd('/');
+ private bool EnInventario=>Ruta.StartsWith("cilindros")||Ruta=="stock-vacios"||Ruta=="planchadas"||Ruta=="rampas";
+ private bool EnCarga=>Ruta.StartsWith("cargas/");
+ private bool EnClientes=>Ruta.StartsWith("clientes")||Ruta=="estadisticas-clientes";
+ private bool EnEntregas=>new[]{"pedidos","recepciones","remitos","devoluciones","operaciones"}.Any(Ruta.StartsWith);
+ private bool EnConfiguracion=>Ruta.StartsWith("usuarios")||Ruta.StartsWith("catalogos")||Ruta.StartsWith("auditoria-remitos");
+ protected override void OnInitialized()=>Navigation.LocationChanged+=AlNavegar;
+ private void AlNavegar(object?sender,Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)=>_ = InvokeAsync(StateHasChanged);
+ public void Dispose()=>Navigation.LocationChanged-=AlNavegar;
+ private void ToggleNavMenu()=>collapseNavMenu=!collapseNavMenu;
+ private void CerrarMenu()=>collapseNavMenu=true;
+ private async Task Salir(){await Auth.LogoutAsync();Navigation.NavigateTo("login");}
 }

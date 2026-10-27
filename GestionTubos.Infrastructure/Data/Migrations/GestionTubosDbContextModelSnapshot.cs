@@ -22,6 +22,68 @@ namespace GestionTubos.Infrastructure.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("GestionTubos.Domain.Entities.AuditoriaRemito", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Accion")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("AntesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CambiosJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DespuesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("FechaUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("NumeroRemito")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<long>("PedidoId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Usuario")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FechaUtc");
+
+                    b.HasIndex("PedidoId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("AuditoriaRemitos", (string)null);
+                });
+
             modelBuilder.Entity("GestionTubos.Domain.Entities.CapacidadTubo", b =>
                 {
                     b.Property<int>("Id")
@@ -273,6 +335,108 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.HasIndex("ClienteId");
 
                     b.ToTable("DireccionesCliente", (string)null);
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.EnvioCarga", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Destino")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("FechaCreacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaSalidaUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Transporte")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Usuario")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("EnviosCarga");
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.EnvioCargaDetalle", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Capacidad")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<long>("EnvioCargaId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Gas")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Resolucion")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("TuboId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UbicacionOrigenId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TuboId");
+
+                    b.HasIndex("EnvioCargaId", "TuboId")
+                        .IsUnique();
+
+                    b.ToTable("EnviosCargaDetalle");
                 });
 
             modelBuilder.Entity("GestionTubos.Domain.Entities.MovimientoCilindro", b =>
@@ -527,6 +691,76 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.ToTable("PruebasHidraulicas", (string)null);
                 });
 
+            modelBuilder.Entity("GestionTubos.Domain.Entities.RecepcionCarga", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("EnvioCargaId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("FechaUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Usuario")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnvioCargaId");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("RecepcionesCarga");
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.RecepcionCargaDetalle", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("EnvioCargaDetalleId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("RecepcionCargaId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Resultado")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("UbicacionDestinoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnvioCargaDetalleId")
+                        .IsUnique();
+
+                    b.HasIndex("RecepcionCargaId");
+
+                    b.ToTable("RecepcionesCargaDetalle");
+                });
+
             modelBuilder.Entity("GestionTubos.Domain.Entities.Remito", b =>
                 {
                     b.Property<long>("Id")
@@ -577,6 +811,10 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.Property<string>("UsuarioEntrega")
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -851,6 +1089,10 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.Property<bool>("EsInterna")
                         .HasColumnType("bit");
 
+                    b.Property<string>("GasBateria")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -862,6 +1104,90 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Ubicaciones", (string)null);
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.UsoBateria", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("CapacidadNominal")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("CodigoTubo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("FechaIngresoUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaRetiroUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Gas")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("MotivoRetiro")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ResultadoRetiro")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("TuboId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UbicacionBateriaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UbicacionOrigenId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UbicacionRetiroId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Unidad")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UsuarioIngreso")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("UsuarioIngresoId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UsuarioRetiro")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("UsuarioRetiroId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TuboId")
+                        .IsUnique()
+                        .HasFilter("[FechaRetiroUtc] IS NULL");
+
+                    b.HasIndex("UbicacionBateriaId");
+
+                    b.HasIndex("FechaRetiroUtc", "UbicacionBateriaId");
+
+                    b.ToTable("UsosBateria", (string)null);
                 });
 
             modelBuilder.Entity("GestionTubos.Domain.Entities.UsuarioAplicacion", b =>
@@ -1118,6 +1444,25 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.Navigation("Cliente");
                 });
 
+            modelBuilder.Entity("GestionTubos.Domain.Entities.EnvioCargaDetalle", b =>
+                {
+                    b.HasOne("GestionTubos.Domain.Entities.EnvioCarga", "EnvioCarga")
+                        .WithMany("Detalles")
+                        .HasForeignKey("EnvioCargaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GestionTubos.Domain.Entities.Tubo", "Tubo")
+                        .WithMany()
+                        .HasForeignKey("TuboId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("EnvioCarga");
+
+                    b.Navigation("Tubo");
+                });
+
             modelBuilder.Entity("GestionTubos.Domain.Entities.MovimientoCilindro", b =>
                 {
                     b.HasOne("GestionTubos.Domain.Entities.Tubo", "Tubo")
@@ -1196,6 +1541,36 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.Navigation("Tubo");
                 });
 
+            modelBuilder.Entity("GestionTubos.Domain.Entities.RecepcionCarga", b =>
+                {
+                    b.HasOne("GestionTubos.Domain.Entities.EnvioCarga", "EnvioCarga")
+                        .WithMany("Recepciones")
+                        .HasForeignKey("EnvioCargaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("EnvioCarga");
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.RecepcionCargaDetalle", b =>
+                {
+                    b.HasOne("GestionTubos.Domain.Entities.EnvioCargaDetalle", "EnvioCargaDetalle")
+                        .WithMany()
+                        .HasForeignKey("EnvioCargaDetalleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GestionTubos.Domain.Entities.RecepcionCarga", "RecepcionCarga")
+                        .WithMany("Detalles")
+                        .HasForeignKey("RecepcionCargaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EnvioCargaDetalle");
+
+                    b.Navigation("RecepcionCarga");
+                });
+
             modelBuilder.Entity("GestionTubos.Domain.Entities.Remito", b =>
                 {
                     b.HasOne("GestionTubos.Domain.Entities.Pedido", "Pedido")
@@ -1271,6 +1646,25 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.Navigation("Ubicacion");
                 });
 
+            modelBuilder.Entity("GestionTubos.Domain.Entities.UsoBateria", b =>
+                {
+                    b.HasOne("GestionTubos.Domain.Entities.Tubo", "Tubo")
+                        .WithMany()
+                        .HasForeignKey("TuboId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GestionTubos.Domain.Entities.Ubicacion", "UbicacionBateria")
+                        .WithMany()
+                        .HasForeignKey("UbicacionBateriaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tubo");
+
+                    b.Navigation("UbicacionBateria");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -1332,6 +1726,13 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.Navigation("Detalles");
                 });
 
+            modelBuilder.Entity("GestionTubos.Domain.Entities.EnvioCarga", b =>
+                {
+                    b.Navigation("Detalles");
+
+                    b.Navigation("Recepciones");
+                });
+
             modelBuilder.Entity("GestionTubos.Domain.Entities.OperacionCilindro", b =>
                 {
                     b.Navigation("RemitoDevolucion");
@@ -1344,6 +1745,11 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.Navigation("Remito");
 
                     b.Navigation("RepartoDetalle");
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.RecepcionCarga", b =>
+                {
+                    b.Navigation("Detalles");
                 });
 
             modelBuilder.Entity("GestionTubos.Domain.Entities.Reparto", b =>

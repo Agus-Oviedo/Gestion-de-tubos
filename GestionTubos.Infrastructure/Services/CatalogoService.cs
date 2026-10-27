@@ -40,7 +40,7 @@ public sealed class CatalogoService(GestionTubosDbContext db) : ICatalogoService
     public async Task<bool> EliminarCapacidadAsync(int id,CancellationToken ct){var x=await db.CapacidadesTubo.FirstOrDefaultAsync(x=>x.Id==id,ct);if(x is null)return false;x.Activa=false;await db.SaveChangesAsync(ct);return true;}
 
     public async Task<IReadOnlyList<UbicacionDto>> ObtenerUbicacionesAsync(CancellationToken ct) =>
-        await db.Ubicaciones.AsNoTracking().OrderBy(x=>x.Nombre).Select(x=>new UbicacionDto(x.Id,x.Nombre,x.Descripcion,x.EsInterna)).ToListAsync(ct);
+        await db.Ubicaciones.AsNoTracking().OrderBy(x=>x.Nombre).Select(x=>new UbicacionDto(x.Id,x.Nombre,x.Descripcion,x.EsInterna,x.GasBateria)).ToListAsync(ct);
     public async Task<UbicacionDto> CrearUbicacionAsync(UbicacionGuardarDto dto,CancellationToken ct)
     {
         var nombre=dto.Nombre.Trim();var existente=await db.Ubicaciones.IgnoreQueryFilters().FirstOrDefaultAsync(x=>x.Nombre==nombre,ct);
@@ -56,6 +56,7 @@ public sealed class CatalogoService(GestionTubosDbContext db) : ICatalogoService
     {
         var x=await db.Ubicaciones.FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(x is null)return null;
+        if(x.GasBateria is not null)throw new InvalidOperationException("Las planchadas del sistema se gestionan desde Planchadas y baterías.");
         var nombre=dto.Nombre.Trim();
         if(string.IsNullOrWhiteSpace(nombre))throw new InvalidOperationException("El nombre es obligatorio.");
         if(await db.Ubicaciones.IgnoreQueryFilters().AnyAsync(u=>u.Id!=id&&u.Nombre==nombre,ct))throw new InvalidOperationException("Ya existe una ubicación con ese nombre.");
@@ -67,6 +68,7 @@ public sealed class CatalogoService(GestionTubosDbContext db) : ICatalogoService
     public async Task<bool> EliminarUbicacionAsync(int id,CancellationToken ct)
     {
         var x=await db.Ubicaciones.FirstOrDefaultAsync(x=>x.Id==id,ct);if(x is null)return false;
+        if(x.GasBateria is not null)throw new InvalidOperationException("No se pueden eliminar las planchadas del sistema.");
         if(await db.Tubos.AnyAsync(t=>t.UbicacionId==id,ct))throw new InvalidOperationException("Primero trasladá los tubos asignados a otra ubicación.");
         x.Activa=false;await db.SaveChangesAsync(ct);return true;
     }

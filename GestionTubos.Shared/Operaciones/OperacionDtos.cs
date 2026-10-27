@@ -36,7 +36,7 @@ public sealed class RecepcionGuardarDto
     [StringLength(20)] public string? DniEntrega { get; set; }
     [StringLength(1000)] public string? Observaciones { get; set; }
 }
-public sealed record OperacionDto(long Id, string Numero, string Tipo, int ClienteId, string Cliente, int CilindroId, string CodigoCilindro, DateTime FechaHoraUtc, string Estado, DateOnly? FechaLimite, DateTime? FechaDevolucionUtc, string? PersonaRecibe, string? Observaciones, string? NumeroRemitoDevolucion = null, string? NumeroRemitoEntrega = null, long? RemitoEntregaId = null);
+public sealed record OperacionDto(long Id, string Numero, string Tipo, int ClienteId, string Cliente, int CilindroId, string CodigoCilindro, DateTime FechaHoraUtc, string Estado, DateOnly? FechaLimite, DateTime? FechaDevolucionUtc, string? PersonaRecibe, string? Observaciones, string? NumeroRemitoDevolucion = null, string? NumeroRemitoEntrega = null, long? RemitoEntregaId = null, string Gas = "", string Capacidad = "");
 
 public sealed class DevolucionLoteCrearDto
 {
@@ -54,7 +54,7 @@ public sealed class DevolucionLoteFirmarDto
     [Required,StringLength(20)] public string DniEntrega { get; set; }=string.Empty;
     [StringLength(400000)] public string FirmaDataUrl { get; set; }=string.Empty;
 }
-public sealed record DevolucionLoteDetalleDto(long OperacionId,int TuboId,string CodigoCilindro,string Gas,string Capacidad);
+public sealed record DevolucionLoteDetalleDto(long OperacionId,int TuboId,string CodigoCilindro,string Gas,string Capacidad,int DiasEnPoderCliente = 0);
 public sealed record DevolucionLoteDto(long Id,string Numero,long RemitoEntregaId,string NumeroRemitoEntrega,int ClienteId,string Cliente,DateTime FechaCreacionUtc,DateTime? FechaConfirmacionUtc,string Estado,string? PersonaEntrega,string? DniEntrega,string? FirmaDataUrl,string? Observaciones,IReadOnlyList<DevolucionLoteDetalleDto> Tubos);
 
 public sealed record RemitoHistorialDto(long Id, string Tipo, string Numero, DateTime FechaUtc, string Estado, int ClienteId, string Cliente, long? PedidoId, string? NumeroPedido, long? OperacionId, string Usuario, string? Persona, string? Documento, string? Observaciones, IReadOnlyList<RemitoTuboDto> Tubos);

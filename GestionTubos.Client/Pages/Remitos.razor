@@ -9,8 +9,8 @@
 
 <div class="card card-body shadow-sm mb-4">
  <div class="row g-3 align-items-end">
-  <div class="col-lg-5"><label class="form-label">Cliente</label><ClienteBuscador Clientes="clientes" ClienteId="clienteId" ClienteIdChanged="CambiarCliente" /></div>
-  <div class="col-lg-3"><label class="form-label">Tipo</label><select class="form-select" @bind="tipo"><option value="">Todos</option><option value="Entrega">Entrega</option><option value="Devolución">Devolución</option></select></div>
+  <div class="col-lg-6"><label class="form-label" for="buscarRemitos">Buscar</label><input id="buscarRemitos" type="search" class="form-control" placeholder="Cliente, DNI/CUIT, remito o código de tubo" @bind="Busqueda" @bind:event="oninput" /></div>
+  <div class="col-lg-2"><label class="form-label">Tipo</label><select class="form-select" @bind="Tipo"><option value="">Todos</option><option value="Entrega">Entrega</option><option value="Devolución">Devolución</option></select></div>
   <div class="col-lg-2"><button class="btn btn-primary w-100" @onclick="Cargar">Buscar</button></div>
   <div class="col-lg-2"><button class="btn btn-outline-secondary w-100" @onclick="Limpiar">Limpiar</button></div>
  </div>
@@ -19,16 +19,27 @@
 @if(cargando){<p>Cargando remitos...</p>}
 else if(!string.IsNullOrWhiteSpace(error)){<div class="alert alert-danger">@error</div>}
 else{
- <div class="card shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Remito</th><th>Tipo</th><th>Fecha</th><th>Cliente</th><th>Tubos</th><th>Persona</th><th>Estado</th><th></th></tr></thead><tbody>
- @if(remitos.Count==0){<tr><td colspan="8" class="text-center text-muted py-4">No hay remitos para los filtros seleccionados.</td></tr>}
- @foreach(var r in remitos){<tr><td><strong>@r.Numero</strong>@if(!string.IsNullOrWhiteSpace(r.NumeroPedido)){<div class="small text-muted">@r.NumeroPedido</div>}</td><td><span class="badge @(r.Tipo=="Entrega"?"bg-primary":"bg-success")">@r.Tipo</span></td><td>@r.FechaUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm")</td><td>@r.Cliente</td><td>@foreach(var t in r.Tubos){<div><strong>@t.CodigoInterno</strong> · @t.Gas · @t.Capacidad</div>}</td><td>@(r.Persona??"—")@if(!string.IsNullOrWhiteSpace(r.Documento)){<div class="small text-muted">DNI @r.Documento</div>}</td><td>@r.Estado</td><td>@if(r.Tipo=="Entrega"&&r.PedidoId.HasValue){<a class="btn btn-sm btn-outline-primary" href="@($"remitos/{r.PedidoId}")">Ver</a>}else if(r.Tipo=="Devolución"&&r.OperacionId is null){<a class="btn btn-sm btn-outline-success" href="@($"devoluciones/{r.Id}")">Ver</a>}</td></tr>}
- </tbody></table></div></div>
+ <div class="card shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Remito</th><th>Tipo</th><th>Fecha</th><th>Cliente</th><th>Persona</th><th>Estado</th><th></th></tr></thead><tbody>
+ @if(RemitosVisibles.Count==0){<tr><td colspan="7" class="text-center text-muted py-4">No hay remitos para los filtros seleccionados.</td></tr>}
+ @foreach(var r in RemitosPagina){<tr><td><strong>@r.Numero</strong>@if(!string.IsNullOrWhiteSpace(r.NumeroPedido)){<div class="small text-muted">@r.NumeroPedido</div>}</td><td><span class="badge @(r.Tipo=="Entrega"?"bg-primary":"bg-success")">@r.Tipo</span></td><td>@r.FechaUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm")</td><td>@r.Cliente</td><td>@(r.Persona??"—")@if(!string.IsNullOrWhiteSpace(r.Documento)){<div class="small text-muted">DNI @r.Documento</div>}</td><td>@r.Estado</td><td>@if(r.Tipo=="Entrega"&&r.PedidoId.HasValue){<a class="btn btn-sm btn-outline-primary" href="@($"remitos/{r.PedidoId}")">Ver</a>}else if(r.Tipo=="Devolución"&&r.OperacionId is null){<a class="btn btn-sm btn-outline-success" href="@($"devoluciones/{r.Id}")">Ver</a>}</td></tr>}
+ </tbody></table></div></div><Paginador Conteo="@RemitosVisibles.Count" Tamano="15" @bind-Pagina="pagina"/>
 }
 
 @code{
- private List<ClienteDto> clientes=[]; private List<RemitoHistorialDto> remitos=[]; private int? clienteId; private string tipo=""; private bool cargando; private string? error;
- protected override async Task OnInitializedAsync(){clientes=(await ClientesApi.ObtenerTodosAsync()).ToList();await Cargar();}
- private Task CambiarCliente(int? id){clienteId=id;return Task.CompletedTask;}
- private async Task Cargar(){try{cargando=true;error=null;remitos=await Api.Remitos(clienteId,null,tipo);}catch(Exception ex){error=ex.Message;}finally{cargando=false;}}
- private async Task Limpiar(){clienteId=null;tipo="";await Cargar();}
+ private int pagina=1;
+ private string Busqueda{get=>busqueda;set{busqueda=value;pagina=1;}}
+ private string Tipo{get=>tipo;set{tipo=value;pagina=1;}}
+ private IEnumerable<RemitoHistorialDto> RemitosPagina=>RemitosVisibles.Skip((Math.Clamp(pagina,1,Math.Max(1,(RemitosVisibles.Count+14)/15))-1)*15).Take(15);
+ private string busqueda="",tipo="";private List<ClienteDto>clientes=[];private List<RemitoHistorialDto>remitos=[];private bool cargando;private string?error;
+ private List<RemitoHistorialDto> RemitosVisibles=>remitos.Where(r=>(string.IsNullOrEmpty(tipo)||r.Tipo==tipo)&&Coincide(r)).ToList();
+ private bool Coincide(RemitoHistorialDto r)
+ {
+  if(string.IsNullOrWhiteSpace(busqueda))return true;
+  var cliente=clientes.FirstOrDefault(c=>c.Id==r.ClienteId);
+  var texto=string.Join(" ",r.Numero,r.NumeroPedido,r.Cliente,cliente?.NombreMostrar,cliente?.NombreComercial,cliente?.Dni,cliente?.CuitCuil,r.Persona,r.Documento,string.Join(" ",r.Tubos.Select(t=>t.CodigoInterno)));
+  return busqueda.Split(' ',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).All(termino=>texto.Contains(termino,StringComparison.OrdinalIgnoreCase));
+ }
+ protected override Task OnInitializedAsync()=>Cargar();
+ private async Task Cargar(){try{cargando=true;error=null;var tareaClientes=ClientesApi.ObtenerTodosAsync();var tareaRemitos=Api.Remitos();await Task.WhenAll(tareaClientes,tareaRemitos);clientes=(await tareaClientes).ToList();remitos=await tareaRemitos;}catch(Exception ex){error=ex.Message;}finally{cargando=false;}}
+ private async Task Limpiar(){tipo="";busqueda="";pagina=1;await Cargar();}
 }

@@ -1,0 +1,41 @@
+@inject PedidoApiService Api
+@inject ClienteApiService ClientesApi
+@inject TuboApiService TubosApi
+
+<section class="card border-primary my-3 remito-no-print">
+ <div class="card-body">
+  <h2 class="h4">Editar @Pedido.NumeroRemito</h2>
+  <p class="text-muted">Los cambios se guardan con tu usuario y su motivo. Al firmar, el remito queda bloqueado.</p>
+  @if(error is not null){<div class="alert alert-danger" role="alert">@error</div>}
+  @if(cargando){<p>Cargando datos...</p>}else{
+  <EditForm Model="modelo" OnValidSubmit="Guardar"><DataAnnotationsValidator/><ValidationSummary/>
+   <div class="row g-3">
+    <div class="col-md-6"><label class="form-label">Cliente</label><ClienteBuscador Clientes="clientes" ClienteId="modelo.ClienteId" ClienteIdChanged="CambiarCliente"/></div>
+    <div class="col-md-6"><label class="form-label">Lugar de entrega</label><InputSelect class="form-select" @bind-Value="modelo.ModalidadEntrega"><option value="RetiroPlanta">Retiro en planta</option><option value="Domicilio">Entrega a domicilio</option></InputSelect></div>
+    @if(modelo.ModalidadEntrega=="Domicilio"){<div class="col-md-8"><label class="form-label">Dirección</label><InputSelect class="form-select" @bind-Value="modelo.DireccionEntregaId"><option value="">Seleccionar</option>@foreach(var d in direcciones){<option value="@d.Id">@d.Calle @d.Numero, @d.Localidad</option>}</InputSelect></div>}
+    <div class="col-md-4"><label class="form-label">Fecha prevista de entrega o retiro</label><InputDate class="form-control" @bind-Value="modelo.FechaPrevistaEntrega"/></div>
+    <div class="col-md-6"><label class="form-label">Contacto</label><InputText class="form-control" @bind-Value="modelo.ContactoEntrega" maxlength="150"/></div>
+    <div class="col-md-6"><label class="form-label">Teléfono</label><InputText class="form-control" @bind-Value="modelo.TelefonoEntrega" maxlength="50"/></div>
+    <div class="col-12"><label class="form-label">Descripción / observaciones</label><InputTextArea class="form-control" rows="3" @bind-Value="modelo.Observaciones" maxlength="1000"/></div>
+    <div class="col-12"><label class="form-label">Tubos · @modelo.CilindroIds.Count seleccionados</label><input type="search" class="form-control mb-2" placeholder="Buscar tubo por código, gas o capacidad" @bind="buscar" @bind:event="oninput"/>
+     <div class="cylinder-picker">@foreach(var t in Filtrados){<label @key="t.Id" class="form-check"><input class="form-check-input" type="checkbox" checked="@modelo.CilindroIds.Contains(t.Id)" @onchange="e=>Seleccionar(t.Id,(bool)(e.Value??false))"/><span class="form-check-label"><strong>@t.CodigoInterno</strong> · @t.Gas · @t.Capacidad · @t.Propietario</span></label>}@if(!Filtrados.Any()){<p class="text-muted">No hay tubos que coincidan.</p>}</div></div>
+    <div class="col-12"><label class="form-label">Motivo del cambio *</label><InputTextArea class="form-control" rows="2" @bind-Value="modelo.Motivo" maxlength="1000" placeholder="Explicá por qué corregís el remito."/><ValidationMessage For="@(()=>modelo.Motivo)"/></div>
+   </div>
+   <div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-primary" disabled="@guardando">@(guardando?"Guardando...":"Guardar cambios")</button><button type="button" class="btn btn-outline-secondary" disabled="@guardando" @onclick="()=>OnCancelar.InvokeAsync()">Cancelar</button></div>
+  </EditForm>}
+ </div>
+</section>
+@code{
+ [Parameter,EditorRequired]public PedidoDto Pedido{get;set;}=default!;
+ [Parameter]public EventCallback OnGuardado{get;set;}[Parameter]public EventCallback OnCancelar{get;set;}
+ private RemitoEditarDto modelo=new();private List<ClienteDto>clientes=[];private List<TuboDto>tubos=[];private List<DireccionClienteDto>direcciones=[];private HashSet<int>originales=[];
+ private bool cargando=true,guardando;private string?error;private string buscar="";
+ private IEnumerable<TuboDto> Habilitados=>tubos.Where(t=>(originales.Contains(t.Id)||t.EstadoDisponibilidad==1)&&(t.TipoPropietario!=1||t.EstadoContenido==1)&&(t.TipoPropietario!=2||t.ClientePropietarioId==modelo.ClienteId));
+ private IEnumerable<TuboDto> Filtrados=>Habilitados.Where(t=>modelo.CilindroIds.Contains(t.Id)||BusquedaTubos.Coincide(buscar,t.Gas,t.CodigoInterno,t.Capacidad,t.Propietario)).OrderByDescending(t=>modelo.CilindroIds.Contains(t.Id)).ThenBy(t=>t.CodigoInterno);
+ protected override async Task OnInitializedAsync(){
+  modelo=new(){VersionEsperada=Pedido.Version,ClienteId=Pedido.ClienteId,CilindroIds=Pedido.Cilindros.Select(x=>x.CilindroId).ToList(),ModalidadEntrega=Pedido.ModalidadEntrega,DireccionEntregaId=Pedido.DireccionEntregaId,FechaPrevistaEntrega=Pedido.FechaPrevistaEntrega,ContactoEntrega=Pedido.ContactoEntrega,TelefonoEntrega=Pedido.TelefonoEntrega,Observaciones=Pedido.Observaciones};originales=modelo.CilindroIds.ToHashSet();
+  try{clientes=(await ClientesApi.ObtenerTodosAsync()).ToList();tubos=await TubosApi.Todos();direcciones=(await ClientesApi.ObtenerDireccionesAsync(modelo.ClienteId)).ToList();}catch(Exception e){error=e.Message;}finally{cargando=false;}}
+ private async Task CambiarCliente(int? id){modelo.ClienteId=id??0;modelo.DireccionEntregaId=null;modelo.CilindroIds.RemoveAll(id=>!Habilitados.Any(t=>t.Id==id));direcciones=modelo.ClienteId>0?(await ClientesApi.ObtenerDireccionesAsync(modelo.ClienteId)).ToList():[];}
+ private void Seleccionar(int id,bool valor){if(valor&&!modelo.CilindroIds.Contains(id))modelo.CilindroIds.Add(id);if(!valor)modelo.CilindroIds.Remove(id);}
+ private async Task Guardar(){if(guardando)return;try{guardando=true;error=null;await Api.Editar(Pedido.Id,modelo);await OnGuardado.InvokeAsync();}catch(Exception e){error=e.Message;}finally{guardando=false;}}
+}

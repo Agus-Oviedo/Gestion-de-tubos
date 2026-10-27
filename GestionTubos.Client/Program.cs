@@ -30,6 +30,8 @@ builder.Services.AddScoped<ClienteApiService>();
 builder.Services.AddScoped<CatalogoApiService>();
 builder.Services.AddScoped<TuboApiService>();
 builder.Services.AddScoped<OperacionApiService>();
+builder.Services.AddScoped<CargaLoteApiService>();
+builder.Services.AddScoped<PlanchadaApiService>();
 builder.Services.AddScoped<PedidoApiService>();
 builder.Services.AddScoped<RepartoApiService>();
 
