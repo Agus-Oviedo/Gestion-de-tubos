@@ -1,0 +1,28 @@
+@page "/ingresos-clientes/nuevo"
+@attribute [Authorize]
+@inject ClienteApiService ClientesApi
+@inject TuboApiService TubosApi
+@inject CatalogoApiService Catalogos
+@inject IngresoClienteApiService Api
+@inject NavigationManager Nav
+<PageTitle>Ingreso de tubos de clientes</PageTitle>
+<h1>Ingreso de tubos de clientes</h1><p class="text-muted">Recibí los tubos vacíos para carga y generá el remito de recepción. El propietario se conserva durante todo el recorrido.</p>
+@if(error is not null){<div class="alert alert-danger">@error</div>}
+@if(cargando){<p>Cargando...</p>}else{
+<EditForm Model="modelo" OnValidSubmit="Guardar" class="card card-body"><DataAnnotationsValidator/><ValidationSummary/>
+<div class="row g-3"><div class="col-md-6"><label class="form-label">Cliente propietario *</label><ClienteBuscador Clientes="clientes" ClienteId="modelo.ClienteId" ClienteIdChanged="CambiarCliente"/></div><div class="col-md-6"><label class="form-label">Ubicación de recepción *</label><InputSelect class="form-select" @bind-Value="modelo.UbicacionId"><option value="0">Seleccionar</option>@foreach(var u in ubicaciones){<option value="@u.Id">@u.Nombre</option>}</InputSelect></div></div>
+@if(modelo.ClienteId>0){<div class="d-flex flex-wrap justify-content-between gap-2 mt-4 mb-2"><h2 class="h5 mb-0">Tubos del cliente · @modelo.TuboIds.Count seleccionados</h2><AuthorizeView Roles="Superadministrador,Administrador" Context="registroIngresoRol"><a class="btn btn-sm btn-outline-primary" href="@($"cilindros/nuevo?clienteId={modelo.ClienteId}")">Registrar otro tubo del cliente</a></AuthorizeView></div><input class="form-control mb-2" type="search" placeholder="Buscar por código, gas o capacidad" @bind="buscar" @bind:event="oninput"/><div class="cylinder-picker">@foreach(var t in Filtrados){<label @key="t.Id" class="form-check py-2"><input class="form-check-input" type="checkbox" checked="@modelo.TuboIds.Contains(t.Id)" @onchange="e=>Marcar(t.Id,(bool)(e.Value??false))"/><span class="form-check-label"><strong>@t.CodigoInterno</strong> · @t.Gas · @t.Capacidad · @t.Ubicacion</span></label>}@if(!Elegibles.Any()){<p class="text-muted">No hay tubos de este cliente pendientes de recepción. Registralos o vinculalos primero desde su ficha.</p>}</div>}
+<div class="row g-3 mt-2"><div class="col-md-8"><label class="form-label">Persona que entrega *</label><InputText class="form-control" @bind-Value="modelo.PersonaEntrega" maxlength="150"/></div><div class="col-md-4"><label class="form-label">DNI (opcional)</label><InputText class="form-control" @bind-Value="modelo.DocumentoEntrega" maxlength="20"/></div><div class="col-12"><label class="form-label">Descripción / observaciones</label><InputTextArea class="form-control" rows="3" maxlength="1000" @bind-Value="modelo.Observaciones"/></div></div>
+<div class="alert alert-info mt-3">Al confirmar, estos tubos se registran vacíos en planta. Los aptos aparecerán en Carga externa; los que necesiten PH o mantenimiento quedarán pendientes de revisión.</div>
+<div class="d-flex flex-wrap gap-2"><button class="btn btn-primary" disabled="@(guardando||modelo.TuboIds.Count==0)">@(guardando?"Registrando...":"Confirmar ingreso y generar remito")</button><a class="btn btn-outline-secondary" href="recepciones">Cancelar</a></div>
+</EditForm>}
+@code{
+ [SupplyParameterFromQuery(Name="clienteId")]public int?ClienteIdInicial{get;set;}[SupplyParameterFromQuery(Name="tuboId")]public int?TuboIdInicial{get;set;}
+ private IngresoClienteCrearDto modelo=new();private List<ClienteDto>clientes=[];private List<TuboDto>tubos=[];private List<UbicacionDto>ubicaciones=[];private bool cargando=true,guardando;private string?error;private string buscar="";
+ private IEnumerable<TuboDto>Elegibles=>tubos.Where(t=>t.TipoPropietario==2&&t.ClientePropietarioId==modelo.ClienteId&&!t.IngresoClienteAbierto&&t.EstadoDisponibilidad is 1 or 4);
+ private IEnumerable<TuboDto>Filtrados=>Elegibles.Where(t=>modelo.TuboIds.Contains(t.Id)||BusquedaTubos.Coincide(buscar,t.Gas,t.CodigoInterno,t.Capacidad)).OrderBy(t=>t.CodigoInterno);
+ protected override async Task OnInitializedAsync(){try{clientes=(await ClientesApi.ObtenerTodosAsync()).ToList();tubos=await TubosApi.Todos();ubicaciones=(await Catalogos.UbicacionesAsync()).Where(u=>u.EsInterna&&u.GasBateria==null).ToList();modelo.UbicacionId=ubicaciones.FirstOrDefault(u=>u.Nombre.Equals("Planta",StringComparison.OrdinalIgnoreCase))?.Id??ubicaciones.FirstOrDefault()?.Id??0;if(ClienteIdInicial.HasValue&&clientes.Any(c=>c.Id==ClienteIdInicial))await CambiarCliente(ClienteIdInicial);if(TuboIdInicial.HasValue&&Elegibles.Any(t=>t.Id==TuboIdInicial))modelo.TuboIds.Add(TuboIdInicial.Value);}catch(Exception e){error=e.Message;}finally{cargando=false;}}
+ private Task CambiarCliente(int? id){modelo.ClienteId=id??0;modelo.TuboIds.Clear();buscar="";modelo.PersonaEntrega=clientes.FirstOrDefault(c=>c.Id==id)?.NombreMostrar??"";return Task.CompletedTask;}
+ private void Marcar(int id,bool v){if(v&&!modelo.TuboIds.Contains(id))modelo.TuboIds.Add(id);if(!v)modelo.TuboIds.Remove(id);}
+ private async Task Guardar(){if(guardando)return;try{guardando=true;error=null;var x=await Api.Crear(modelo);Nav.NavigateTo($"ingresos-clientes/{x.Id}");}catch(Exception e){error=e.Message;}finally{guardando=false;}}
+}

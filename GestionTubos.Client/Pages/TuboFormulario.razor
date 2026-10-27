@@ -3,6 +3,7 @@
 @attribute [Authorize(Roles = "Superadministrador,Administrador")]
 @inject TuboApiService Api
 @inject CatalogoApiService Catalogos
+@inject ClienteApiService ClientesApi
 @inject NavigationManager Nav
 
 <PageTitle>@(Id.HasValue ? "Editar tubo" : "Cargar tubo")</PageTitle>
@@ -14,6 +15,7 @@
 
 @if (error is not null) { <div class="alert alert-danger">@error</div> }
 
+@if(cargando){<p>Cargando datos del tubo...</p>}else{
 <EditForm Model="modelo" OnValidSubmit="Guardar" class="card stock-form">
     <DataAnnotationsValidator />
     <div class="card-body p-lg-4">
@@ -42,13 +44,14 @@
             <div class="col-md-4"><label class="form-label">Marca</label><InputText class="form-control" @bind-Value="modelo.Marca" placeholder="Opcional" /></div>
             <div class="col-md-4">
                 <label class="form-label">Propietario</label>
-                <InputSelect class="form-select" @bind-Value="modelo.TipoPropietario"><option value="1">Oxígeno Norte</option><option value="4">Otro propietario</option></InputSelect>
+                <InputSelect class="form-select" @bind-Value="TipoPropietario"><option value="1">Oxígeno Norte</option><option value="2">Cliente (vinculado a su ficha)</option><option value="3">Proveedor</option><option value="4">Otro propietario</option></InputSelect>
             </div>
-            @if (modelo.TipoPropietario == 4)
+            @if(modelo.TipoPropietario==2){<div class="col-md-8"><label class="form-label">Cliente propietario *</label><ClienteBuscador Clientes="clientes" ClienteId="modelo.ClientePropietarioId" ClienteIdChanged="id=>modelo.ClientePropietarioId=id"/><ValidationMessage For="@(()=>modelo.ClientePropietarioId)"/><small class="text-muted">El tubo siempre quedará vinculado a esta ficha. Al recibirlo para carga se genera su remito de ingreso.</small></div>}
+            @if (modelo.TipoPropietario is 3 or 4)
             {
                 <div class="col-md-4"><label class="form-label">Nombre del propietario <span class="text-danger">*</span></label><InputText class="form-control" @bind-Value="modelo.NombrePropietarioExterno" /></div>
             }
-            <div class="col-md-4">
+            @if(modelo.TipoPropietario!=2){<div class="col-md-4">
                 <label class="form-label">Ubicación <span class="text-danger">*</span></label>
                 <InputSelect class="form-select" @bind-Value="modelo.UbicacionId"><option value="0">Seleccionar</option>@foreach (var x in ubicaciones) { <option value="@x.Id">@x.Nombre</option> }</InputSelect>
                 <ValidationMessage For="@(() => modelo.UbicacionId)" />
@@ -57,6 +60,7 @@
                 <label class="form-label">Estado</label>
                 <InputSelect class="form-select" @bind-Value="modelo.EstadoDisponibilidad"><option value="1">Disponible</option><option value="4">En uso</option><option value="7">Mantenimiento</option><option value="10">Extraviado</option></InputSelect>
             </div>
+            }else{<div class="col-md-4"><label class="form-label">Situación del tubo</label><p class="form-control bg-light">@(Id.HasValue?"Se conserva su situación actual":"En poder del propietario")</p><small class="text-muted">La ubicación y disponibilidad se actualizan al recibirlo y al entregarlo.</small></div>}
             @if (modelo.TipoPropietario != 1)
             {
                 <div class="col-md-4"><label class="form-label">Contenido</label><InputSelect class="form-select" @bind-Value="modelo.EstadoContenido"><option value="1">Lleno</option><option value="2">Vacío</option></InputSelect></div>
@@ -85,20 +89,26 @@
         <button class="btn btn-primary px-4" disabled="@guardando">@(guardando ? "Guardando..." : Id.HasValue ? "Guardar cambios" : "Cargar tubo")</button>
     </div>
 </EditForm>
+}
 
 @code {
+    [SupplyParameterFromQuery(Name="clienteId")]public int?ClienteIdInicial{get;set;}
     [Parameter] public int? Id { get; set; }
     private TuboGuardarDto modelo = NuevoModelo();
+    private List<ClienteDto>clientes=[];
+    private int TipoPropietario{get=>modelo.TipoPropietario;set{modelo.TipoPropietario=value;if(!Id.HasValue){modelo.EstadoContenido=value==2?2:1;modelo.EstadoDisponibilidad=value==2?4:1;}if(value!=2)modelo.ClientePropietarioId=null;}}
     private List<TipoGasDto> gases = [];
     private List<CapacidadDto> capacidades = [];
     private List<UbicacionDto> ubicaciones = [];
     private string? error;
     private bool guardando;
+    private bool cargando=true;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            clientes=(await ClientesApi.ObtenerTodosAsync()).ToList();
             gases = await Catalogos.GasesAsync();
             capacidades = await Catalogos.CapacidadesAsync();
             ubicaciones = (await Catalogos.UbicacionesAsync()).Where(x => x.EsInterna && x.GasBateria==null).ToList();
@@ -106,20 +116,21 @@
             {
                 var x = await Api.Uno(Id.Value);
                 if (x is null) { error = "No se encontró el tubo."; return; }
-                modelo = new TuboGuardarDto { CodigoInterno = x.CodigoInterno, TipoGasId = x.TipoGasId, CapacidadTuboId = x.CapacidadTuboId, TipoPropietario = x.TipoPropietario is 1 ? 1 : 4, NombrePropietarioExterno = x.TipoPropietario is 1 ? null : x.Propietario, EstadoFisico = 1, EstadoContenido = x.EstadoContenido, EstadoDisponibilidad = x.EstadoDisponibilidad, UbicacionId = x.UbicacionId, Marca = x.Marca, Observaciones = x.Observaciones, RegistrarPruebaInicial = true, PruebaAprobada = true, EntidadPrueba = "No especificada", FechaPruebaHidraulica = x.FechaPruebaHidraulica ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy), FechaVencimientoPrueba = x.FechaVencimientoPrueba ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy.AddYears(5)) };
-            }
+                modelo = new TuboGuardarDto { CodigoInterno = x.CodigoInterno, TipoGasId = x.TipoGasId, CapacidadTuboId = x.CapacidadTuboId, TipoPropietario = x.TipoPropietario, ClientePropietarioId=x.ClientePropietarioId, NumeroSerie=x.NumeroSerie, IdentificacionGrabada=x.IdentificacionGrabada, Fabricante=x.Fabricante, FechaFabricacion=x.FechaFabricacion, NombrePropietarioExterno = x.NombrePropietarioExterno, EstadoFisico = x.EstadoFisico, EstadoContenido = x.EstadoContenido, EstadoDisponibilidad = x.EstadoDisponibilidad, UbicacionId = x.UbicacionId, Marca = x.Marca, Observaciones = x.Observaciones, RegistrarPruebaInicial = true, PruebaAprobada = true, EntidadPrueba = "No especificada", FechaPruebaHidraulica = x.FechaPruebaHidraulica ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy), FechaVencimientoPrueba = x.FechaVencimientoPrueba ?? DateOnly.FromDateTime(GestionTubos.Shared.HoraArgentina.Hoy.AddYears(5)) };
+            }else if(ClienteIdInicial.HasValue){if(!clientes.Any(c=>c.Id==ClienteIdInicial))throw new InvalidOperationException("No se encontró el cliente propietario.");TipoPropietario=2;modelo.ClientePropietarioId=ClienteIdInicial;}
         }
         catch (Exception ex) { error = ex.Message; }
+        finally { cargando=false; }
     }
 
     private static TuboGuardarDto NuevoModelo() => new() { TipoPropietario = 1, EstadoFisico = 1, EstadoContenido = 1, EstadoDisponibilidad = 1, RegistrarPruebaInicial = true, PruebaAprobada = true, EntidadPrueba = "No especificada" };
     private static string Contenido(int estado) => estado switch { 1 => "Lleno", 2 => "Vacío", 3 => "Parcial", _ => "Desconocido" };
-    private void Cancelar() => Nav.NavigateTo("/cilindros");
+    private void Cancelar() => Nav.NavigateTo(ClienteIdInicial.HasValue?$"/clientes/{ClienteIdInicial}/cilindros":"/cilindros");
     private async Task Guardar()
     {
         if (guardando) return;
         guardando = true; error = null;
-        try { if (Id.HasValue) await Api.Editar(Id.Value, modelo); else await Api.Crear(modelo); Nav.NavigateTo("/cilindros"); }
+        try { if (Id.HasValue) await Api.Editar(Id.Value, modelo); else await Api.Crear(modelo); Nav.NavigateTo(modelo.TipoPropietario==2?$"/clientes/{modelo.ClientePropietarioId}/cilindros":"/cilindros"); }
         catch (Exception ex) { error = ex.Message; }
         finally { guardando = false; }
     }

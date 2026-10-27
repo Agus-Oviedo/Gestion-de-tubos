@@ -401,6 +401,9 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("ClientePropietarioId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Codigo")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -419,9 +422,21 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("Propietario")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)")
+                        .HasDefaultValue("Oxígeno Norte");
+
                     b.Property<string>("Resolucion")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("TipoPropietario")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
 
                     b.Property<int>("TuboId")
                         .HasColumnType("int");
@@ -437,6 +452,120 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("EnviosCargaDetalle");
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.IngresoCliente", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ClienteNombre")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("DocumentoCliente")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DocumentoEntrega")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("FechaUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("PersonaEntrega")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("UbicacionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Usuario")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("Numero")
+                        .IsUnique();
+
+                    b.ToTable("IngresosClientes", (string)null);
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.IngresoClienteDetalle", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Capacidad")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("FechaRetiroUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Gas")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long>("IngresoClienteId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("RemitoEntregaId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("TuboId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RemitoEntregaId");
+
+                    b.HasIndex("TuboId")
+                        .IsUnique()
+                        .HasFilter("[FechaRetiroUtc] IS NULL");
+
+                    b.HasIndex("IngresoClienteId", "TuboId")
+                        .IsUnique();
+
+                    b.ToTable("IngresosClientesDetalle", (string)null);
                 });
 
             modelBuilder.Entity("GestionTubos.Domain.Entities.MovimientoCilindro", b =>
@@ -1463,6 +1592,43 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.Navigation("Tubo");
                 });
 
+            modelBuilder.Entity("GestionTubos.Domain.Entities.IngresoCliente", b =>
+                {
+                    b.HasOne("GestionTubos.Domain.Entities.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cliente");
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.IngresoClienteDetalle", b =>
+                {
+                    b.HasOne("GestionTubos.Domain.Entities.IngresoCliente", "IngresoCliente")
+                        .WithMany("Detalles")
+                        .HasForeignKey("IngresoClienteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GestionTubos.Domain.Entities.Remito", "RemitoEntrega")
+                        .WithMany()
+                        .HasForeignKey("RemitoEntregaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("GestionTubos.Domain.Entities.Tubo", "Tubo")
+                        .WithMany()
+                        .HasForeignKey("TuboId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("IngresoCliente");
+
+                    b.Navigation("RemitoEntrega");
+
+                    b.Navigation("Tubo");
+                });
+
             modelBuilder.Entity("GestionTubos.Domain.Entities.MovimientoCilindro", b =>
                 {
                     b.HasOne("GestionTubos.Domain.Entities.Tubo", "Tubo")
@@ -1731,6 +1897,11 @@ namespace GestionTubos.Infrastructure.Data.Migrations
                     b.Navigation("Detalles");
 
                     b.Navigation("Recepciones");
+                });
+
+            modelBuilder.Entity("GestionTubos.Domain.Entities.IngresoCliente", b =>
+                {
+                    b.Navigation("Detalles");
                 });
 
             modelBuilder.Entity("GestionTubos.Domain.Entities.OperacionCilindro", b =>

@@ -34,7 +34,7 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
         var prueba = new PruebaHidraulica { TuboId = dto.CilindroId, FechaRealizacion = dto.FechaRealizacion, FechaVencimiento = dto.FechaVencimiento, Aprobada = dto.Aprobada, EntidadRealizadora = dto.EntidadRealizadora.Trim(), NumeroCertificado = Limpiar(dto.NumeroCertificado), Observaciones = Limpiar(dto.Observaciones) };
         db.PruebasHidraulicas.Add(prueba);
         var estadoAnterior = Estado(cilindro);
-        if (dto.Aprobada && cilindro.EstadoDisponibilidad == EstadoDisponibilidad.EnPruebaHidraulica)
+        if (dto.Aprobada && cilindro.EstadoDisponibilidad is (EstadoDisponibilidad.EnPruebaHidraulica or EstadoDisponibilidad.PendienteInspeccion))
             cilindro.EstadoDisponibilidad = EstadoDisponibilidad.Disponible;
         else if (!dto.Aprobada)
             cilindro.EstadoDisponibilidad = EstadoDisponibilidad.EnMantenimiento;
@@ -55,6 +55,7 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
     {
         var cliente = await db.Clientes.FirstOrDefaultAsync(x => x.Id == dto.ClienteId, ct) ?? throw new InvalidOperationException("No se encontró el cliente.");
         var cilindro = await db.Tubos.Include(x => x.Ubicacion).Include(x => x.TipoGas).Include(x => x.CapacidadTubo).FirstOrDefaultAsync(x => x.Id == dto.CilindroId, ct) ?? throw new InvalidOperationException("No se encontró el cilindro.");
+        if(cilindro.TipoPropietario==TipoPropietarioTubo.Cliente)throw new InvalidOperationException("Entregá el tubo de su propietario mediante un remito de entrega.");
         if (cilindro.TipoPropietario == TipoPropietarioTubo.Empresa && cilindro.EstadoContenido != EstadoContenido.Lleno) throw new InvalidOperationException("Solo se pueden entregar tubos propios llenos.");
         if (cilindro.EstadoDisponibilidad != EstadoDisponibilidad.Disponible) throw new InvalidOperationException("El cilindro no está disponible.");
         if (cilindro.TipoPropietario == TipoPropietarioTubo.Cliente && cilindro.ClientePropietarioId != dto.ClienteId) throw new InvalidOperationException("Este cilindro pertenece a otro cliente y no puede ser entregado.");
@@ -121,6 +122,10 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
             var lotes=db.DevolucionesLote.AsNoTracking().Where(x=>x.Estado=="Confirmado").Include(x=>x.Cliente).Include(x=>x.RemitoEntrega).ThenInclude(x=>x.Pedido).Include(x=>x.Detalles).ThenInclude(x=>x.OperacionCilindro).ThenInclude(x=>x.Tubo).ThenInclude(x=>x.TipoGas).Include(x=>x.Detalles).ThenInclude(x=>x.OperacionCilindro).ThenInclude(x=>x.Tubo).ThenInclude(x=>x.CapacidadTubo).AsQueryable();
             if(clienteId.HasValue)lotes=lotes.Where(x=>x.ClienteId==clienteId.Value);if(tuboId.HasValue)lotes=lotes.Where(x=>x.Detalles.Any(d=>d.OperacionCilindro.TuboId==tuboId.Value));
             foreach(var x in await lotes.ToListAsync(ct))resultado.Add(new(x.Id,"Devolución",x.Numero,x.FechaConfirmacionUtc??x.FechaCreacionUtc,x.Estado,x.ClienteId,NombreCliente(x.Cliente),x.RemitoEntrega.PedidoId,x.RemitoEntrega.Pedido.Numero,null,x.UsuarioReceptor,x.PersonaEntrega,x.DniEntrega,x.Observaciones,x.Detalles.Select(d=>new RemitoTuboDto(d.OperacionCilindro.TuboId,d.OperacionCilindro.Tubo.CodigoInterno,d.OperacionCilindro.Tubo.TipoGas.Nombre,$"{d.OperacionCilindro.Tubo.CapacidadTubo.Valor} {d.OperacionCilindro.Tubo.CapacidadTubo.Unidad}")).ToList()));
+        }
+        if(string.IsNullOrWhiteSpace(tipo)||tipo.Equals("Ingreso",StringComparison.OrdinalIgnoreCase)){
+            var ingresos=db.IngresosClientes.AsNoTracking().Include(x=>x.Detalles).AsQueryable();if(clienteId.HasValue)ingresos=ingresos.Where(x=>x.ClienteId==clienteId);if(tuboId.HasValue)ingresos=ingresos.Where(x=>x.Detalles.Any(d=>d.TuboId==tuboId));
+            foreach(var x in await ingresos.ToListAsync(ct))resultado.Add(new(x.Id,"Ingreso",x.Numero,x.FechaUtc,"Confirmado",x.ClienteId,x.ClienteNombre,null,null,null,x.Usuario,x.PersonaEntrega,x.DocumentoEntrega,x.Observaciones,x.Detalles.Select(d=>new RemitoTuboDto(d.TuboId,d.Codigo,d.Gas,d.Capacidad)).ToList()));
         }
         return resultado.OrderByDescending(x => x.FechaUtc).ToList();
     }
@@ -210,10 +215,11 @@ public sealed class OperacionService(GestionTubosDbContext db) : IOperacionServi
 
     public async Task IngresarCilindroClienteAsync(IngresoCilindroClienteDto dto,string usuario,CancellationToken ct)
     {
+        if(dto.Motivo=="Carga")throw new InvalidOperationException("Usá Ingreso de tubos de clientes para generar el remito de recepción antes de cargar.");
         var c=await db.Tubos.FirstOrDefaultAsync(x=>x.Id==dto.CilindroId,ct)??throw new InvalidOperationException("No se encontró el cilindro.");
         if(c.TipoPropietario!=TipoPropietarioTubo.Cliente||c.ClientePropietarioId!=dto.ClienteId)throw new InvalidOperationException("El cilindro no pertenece al cliente seleccionado.");
         if(!await db.Ubicaciones.AnyAsync(x=>x.Id==dto.UbicacionDestinoId&&x.EsInterna&&x.GasBateria==null,ct))throw new InvalidOperationException("La ubicación de ingreso no existe.");
-        if(c.EstadoDisponibilidad is EstadoDisponibilidad.Reservado or EstadoDisponibilidad.EnReparto)throw new InvalidOperationException("El cilindro está vinculado a una salida activa.");
+        if(c.EstadoDisponibilidad!=EstadoDisponibilidad.EnPoderCliente)throw new InvalidOperationException("El cilindro está vinculado a una salida activa.");
         var destino=dto.Motivo switch{"Carga"=>EstadoDisponibilidad.EnCarga,"Inspeccion"=>EstadoDisponibilidad.PendienteInspeccion,"Mantenimiento"=>EstadoDisponibilidad.EnMantenimiento,"PruebaHidraulica"=>EstadoDisponibilidad.EnPruebaHidraulica,_=>throw new InvalidOperationException("Motivo de ingreso inválido.")};
         var anterior=Estado(c);var origen=c.UbicacionId;c.EstadoFisico=(EstadoFisico)dto.EstadoFisico;c.EstadoContenido=dto.Motivo=="Carga"?EstadoContenido.Vacio:(EstadoContenido)dto.EstadoContenido;c.EstadoDisponibilidad=destino;c.UbicacionId=dto.UbicacionDestinoId;
         var obs=$"Motivo: {dto.Motivo}. {Limpiar(dto.Observaciones)}".Trim();db.MovimientosCilindro.Add(MovimientoUsuario(c,"Ingreso de cilindro del cliente",origen,c.UbicacionId,dto.ClienteId,obs,usuario,anterior));await db.SaveChangesAsync(ct);

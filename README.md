@@ -96,3 +96,14 @@ Un faltante definitivo se puede resolver con un motivo y confirmación expresa; 
 - **Remitos de carga**: historial independiente de envíos y recepciones, incluidos envíos completos y cancelados. Permite buscar por remito o código de tubo, filtrar por tipo y descargar los PDF. Los remitos incluyen logo, tablas y páginas numeradas; los preparados se identifican como borrador.
 
 Al preparar un nuevo envío desde el stock se abre una vista previa emergente. Volver a editar no crea un remito ni reserva tubos. Confirmar envío guarda el remito y registra la salida en una sola transacción, conservando el documento confirmado en la ventana para descargarlo. Los borradores existentes siguen pudiendo confirmarse desde su detalle.
+
+
+## Tubos propiedad de clientes
+
+- Al registrar un tubo, seleccionar **Cliente (vinculado a su ficha)** y elegir el propietario. El registro por sí solo no simula una recepción física.
+- Desde los tubos del cliente o desde **Devoluciones**, usar **Recibir para carga** para generar el remito de ingreso de los tubos vacíos.
+- Los tubos recibidos y aptos aparecen en **Carga externa**, junto con los propios. Los remitos de envío y recepción conservan el propietario de cada tubo.
+- Al regresar llenos se entregan mediante un remito al mismo propietario. La firma de entrega cierra el ingreso y no genera alquiler por un tubo del cliente.
+- Los remitos de ingreso están disponibles en el historial y en PDF. Sus datos confirmados no se reescriben.
+
+La migración `TubosClientesEnCargaExterna` agrega las recepciones y los datos de propiedad de los envíos, sin reemplazar el inventario existente. Las correcciones de registros antiguos requieren identificar expresamente el tubo y su propietario; no se vinculan por coincidencias parciales de nombres.

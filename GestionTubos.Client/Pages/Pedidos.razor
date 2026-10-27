@@ -25,7 +25,7 @@
  private async Task CambiarCliente(int?id){ClienteSeleccionado=id??0;await CargarDirecciones();}
  private string ModalidadEntrega{get=>nuevo.ModalidadEntrega;set{nuevo.ModalidadEntrega=value;if(value!="Domicilio")nuevo.DireccionEntregaId=null;}}
  protected override async Task OnInitializedAsync(){clientes=(await ClientesApi.ObtenerTodosAsync()).ToList();await Cargar();if(ClienteIdInicial.HasValue&&clientes.Any(x=>x.Id==ClienteIdInicial)){ClienteSeleccionado=ClienteIdInicial.Value;await CargarDirecciones();}}
- private async Task Cargar(){pedidos=(await Api.Obtener()).Where(x=>x.Estado!="Entregado").ToList();disponibles=(await CilindrosApi.Todos()).Where(x=>x.EstadoDisponibilidad==1&&(x.TipoPropietario!=1||x.EstadoContenido==1)).ToList();}
+ private async Task Cargar(){pedidos=(await Api.Obtener()).Where(x=>x.Estado!="Entregado").ToList();disponibles=(await CilindrosApi.Todos()).Where(x=>x.EstadoDisponibilidad==1&&((x.TipoPropietario is not (1 or 2))||x.EstadoContenido==1)&&(x.TipoPropietario!=2||x.IngresoClienteAbierto)).ToList();}
  private async Task CargarDirecciones(){direcciones=nuevo.ClienteId>0?(await ClientesApi.ObtenerDireccionesAsync(nuevo.ClienteId)).ToList():[];nuevo.DireccionEntregaId=direcciones.FirstOrDefault(x=>x.EsPrincipalEntrega)?.Id??direcciones.FirstOrDefault()?.Id;}
  private static string Direccion(DireccionClienteDto d)=>$"{d.Calle} {d.Numero}, {d.Localidad}, {d.Provincia}".Replace("  "," ");
  private void Seleccionar(int id,bool marcado){if(marcado&&!nuevo.CilindroIds.Contains(id))nuevo.CilindroIds.Add(id);else if(!marcado)nuevo.CilindroIds.Remove(id);}

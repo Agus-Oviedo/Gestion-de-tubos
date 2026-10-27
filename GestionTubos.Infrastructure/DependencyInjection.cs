@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<ICatalogoService, CatalogoService>();
         services.AddScoped<ITuboService, TuboService>();
         services.AddScoped<CargaLoteService>();
+        services.AddScoped<IngresoClienteService>();
         services.AddScoped<PlanchadaService>();
         services.AddScoped<IOperacionService, OperacionService>();
         services.AddScoped<IPedidoService, PedidoService>();

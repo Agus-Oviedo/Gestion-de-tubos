@@ -6,6 +6,7 @@ public sealed class EnvioCarga
 }
 public sealed class EnvioCargaDetalle
 {
+ public int TipoPropietario{get;set;}=1;public int?ClientePropietarioId{get;set;}public string Propietario{get;set;}="Oxígeno Norte";
  public long Id {get;set;} public long EnvioCargaId {get;set;} public EnvioCarga EnvioCarga {get;set;}=null!; public int TuboId {get;set;} public Tubo Tubo {get;set;}=null!; public int UbicacionOrigenId {get;set;} public string Codigo {get;set;}=""; public string Gas {get;set;}=""; public string Capacidad {get;set;}=""; public string Estado {get;set;}="Pendiente"; public string? Resolucion {get;set;}
 }
 public sealed class RecepcionCarga

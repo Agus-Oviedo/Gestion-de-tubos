@@ -37,4 +37,4 @@ public sealed class TuboGuardarDto:IValidatableObject
  }
 }
 
-public sealed record TuboDto(int Id,string CodigoInterno,string? NumeroSerie,int TipoGasId,string Gas,int CapacidadTuboId,string Capacidad,int TipoPropietario,int? ClientePropietarioId,string Propietario,int EstadoFisico,int EstadoContenido,int EstadoDisponibilidad,int UbicacionId,string Ubicacion,string? Marca,string? Fabricante,DateOnly? FechaFabricacion,string? IdentificacionGrabada,string? NombrePropietarioExterno,string? Observaciones,DateOnly? FechaPruebaHidraulica=null,DateOnly? FechaVencimientoPrueba=null);
+public sealed record TuboDto(int Id,string CodigoInterno,string? NumeroSerie,int TipoGasId,string Gas,int CapacidadTuboId,string Capacidad,int TipoPropietario,int? ClientePropietarioId,string Propietario,int EstadoFisico,int EstadoContenido,int EstadoDisponibilidad,int UbicacionId,string Ubicacion,string? Marca,string? Fabricante,DateOnly? FechaFabricacion,string? IdentificacionGrabada,string? NombrePropietarioExterno,string? Observaciones,DateOnly? FechaPruebaHidraulica=null,DateOnly? FechaVencimientoPrueba=null,bool IngresoClienteAbierto=false);

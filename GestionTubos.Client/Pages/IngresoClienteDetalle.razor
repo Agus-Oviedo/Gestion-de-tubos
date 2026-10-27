@@ -1,0 +1,15 @@
+@page "/ingresos-clientes/{Id:long}"
+@attribute [Authorize]
+@inject IngresoClienteApiService Api
+@inject IJSRuntime JS
+<PageTitle>Remito de ingreso</PageTitle>
+@if(error is not null){<div class="alert alert-danger">@error</div>}@if(cargando){<p>Cargando remito...</p>}else if(remito is null){<p>No se encontró el remito.</p>}else{
+<div class="remito-actions d-flex flex-wrap gap-2 mb-3"><a class="btn btn-outline-secondary" href="remitos">Historial de remitos</a><button class="btn btn-primary" disabled="@descargando" @onclick="Descargar">Descargar PDF</button><button class="btn btn-outline-primary" @onclick="Imprimir">Imprimir</button><a class="btn btn-outline-success" href="cargas/preparar">Preparar envío a carga externa</a></div>
+<article class="remito-document"><header class="remito-header"><img src="oxigeno-norte-logo.png" alt="Oxígeno Norte"/><div><h1>RECEPCIÓN</h1><strong>@remito.Numero</strong><div>@remito.FechaUtc.EnArgentina().ToString("dd/MM/yyyy HH:mm")</div></div></header><section class="remito-company"><div><strong>OXÍGENO NORTE</strong><br/>Santa Rosa, La Pampa</div><div><strong>Ingreso de tubos del cliente para carga</strong><br/>Ubicación: @remito.Ubicacion<br/>Estado: Confirmado</div></section><section class="remito-client"><span>CLIENTE PROPIETARIO</span><h2>@remito.Cliente</h2><div>@remito.DocumentoCliente</div></section><table class="remito-table"><thead><tr><th>Código del tubo</th><th>Gas</th><th>Capacidad</th></tr></thead><tbody>@foreach(var t in remito.Tubos){<tr><td>@t.Codigo</td><td>@t.Gas</td><td>@t.Capacidad</td></tr>}</tbody><tfoot><tr><td colspan="2"><strong>Total de tubos</strong></td><td>@remito.Tubos.Count</td></tr></tfoot></table>@if(!string.IsNullOrWhiteSpace(remito.Observaciones)){<section class="remito-observations"><strong>Descripción / observaciones</strong><p>@remito.Observaciones</p></section>}<section class="remito-company"><div>Entregó: <strong>@remito.PersonaEntrega</strong><br/>@remito.DocumentoEntrega</div><div>Recibido por: <strong>@remito.Usuario</strong></div></section><footer>Documento interno de recepción para carga. Los tubos conservan su propietario.</footer></article>
+}
+@code{
+ [Parameter]public long Id{get;set;}private IngresoClienteDto?remito;private bool cargando=true,descargando;private string?error;
+ protected override async Task OnParametersSetAsync(){try{cargando=true;remito=await Api.Obtener(Id);}catch(Exception e){error=e.Message;}finally{cargando=false;}}
+ private async Task Descargar(){try{descargando=true;var b=await Api.Pdf(Id);await JS.InvokeVoidAsync("descargarArchivoBase64",remito!.Numero+".pdf","application/pdf",Convert.ToBase64String(b));}catch(Exception e){error=e.Message;}finally{descargando=false;}}
+ private Task Imprimir()=>JS.InvokeVoidAsync("print").AsTask();
+}

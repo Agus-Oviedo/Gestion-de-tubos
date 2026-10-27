@@ -30,7 +30,7 @@
  [Parameter]public EventCallback OnGuardado{get;set;}[Parameter]public EventCallback OnCancelar{get;set;}
  private RemitoEditarDto modelo=new();private List<ClienteDto>clientes=[];private List<TuboDto>tubos=[];private List<DireccionClienteDto>direcciones=[];private HashSet<int>originales=[];
  private bool cargando=true,guardando;private string?error;private string buscar="";
- private IEnumerable<TuboDto> Habilitados=>tubos.Where(t=>(originales.Contains(t.Id)||t.EstadoDisponibilidad==1)&&(t.TipoPropietario!=1||t.EstadoContenido==1)&&(t.TipoPropietario!=2||t.ClientePropietarioId==modelo.ClienteId));
+ private IEnumerable<TuboDto> Habilitados=>tubos.Where(t=>(originales.Contains(t.Id)||t.EstadoDisponibilidad==1)&&((t.TipoPropietario is not (1 or 2))||t.EstadoContenido==1)&&(t.TipoPropietario!=2||t.IngresoClienteAbierto)&&(t.TipoPropietario!=2||t.ClientePropietarioId==modelo.ClienteId));
  private IEnumerable<TuboDto> Filtrados=>Habilitados.Where(t=>modelo.CilindroIds.Contains(t.Id)||BusquedaTubos.Coincide(buscar,t.Gas,t.CodigoInterno,t.Capacidad,t.Propietario)).OrderByDescending(t=>modelo.CilindroIds.Contains(t.Id)).ThenBy(t=>t.CodigoInterno);
  protected override async Task OnInitializedAsync(){
   modelo=new(){VersionEsperada=Pedido.Version,ClienteId=Pedido.ClienteId,CilindroIds=Pedido.Cilindros.Select(x=>x.CilindroId).ToList(),ModalidadEntrega=Pedido.ModalidadEntrega,DireccionEntregaId=Pedido.DireccionEntregaId,FechaPrevistaEntrega=Pedido.FechaPrevistaEntrega,ContactoEntrega=Pedido.ContactoEntrega,TelefonoEntrega=Pedido.TelefonoEntrega,Observaciones=Pedido.Observaciones};originales=modelo.CilindroIds.ToHashSet();

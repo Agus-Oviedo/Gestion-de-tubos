@@ -60,6 +60,7 @@ app.MapGet("/api/estado", () => Results.Ok(new
 await GestionTubos.Api.Services.ServerUpgrade.EjecutarAsync(app);
 await GestionTubos.Api.Services.ServerUpgrade.EjecutarAsync(app,"auditoria-20261015");
 await GestionTubos.Api.Services.ServerUpgrade.EjecutarAsync(app,"planchadas-20261015");
+await GestionTubos.Api.Services.ServerUpgrade.EjecutarAsync(app,"clientes-carga-20261027");
 using(var planchadasScope=app.Services.CreateScope())await planchadasScope.ServiceProvider.GetRequiredService<GestionTubos.Infrastructure.Services.PlanchadaService>().InicializarAsync();
 using(var auditoriaScope=app.Services.CreateScope())await auditoriaScope.ServiceProvider.GetRequiredService<GestionTubos.Application.Interfaces.IPedidoService>().RegistrarEstadosInicialesAsync(default);
 await GestionTubos.Api.Services.CorregirContenidoInicial.EjecutarAsync(app);

@@ -11,6 +11,8 @@ public sealed class RemitoPdfGenerator(IWebHostEnvironment environment)
     private static readonly XColor Azul = XColor.FromArgb(7, 58, 112);
     private static readonly XColor Celeste = XColor.FromArgb(237, 246, 252);
 
+    public byte[] IngresoCliente(IngresoClienteDto r)=>Crear("RECEPCIÓN",r.Numero,r.FechaUtc,r.Cliente,r.DocumentoCliente,"Tipo: ingreso para carga","Ubicación: "+r.Ubicacion,"Estado: confirmado",r.Tubos.Select(t=>(t.Codigo,t.Gas,t.Capacidad)).ToList(),r.PersonaEntrega,r.DocumentoEntrega,null,"Recibido por: "+r.Usuario,r.Observaciones);
+
     public byte[] Entrega(PedidoDto remito, string documentoCliente) => Crear(
         "REMITO", remito.NumeroRemito ?? remito.Numero,
         remito.FechaFirmaUtc ?? remito.FechaHoraUtc, remito.Cliente, documentoCliente,
@@ -29,12 +31,12 @@ public sealed class RemitoPdfGenerator(IWebHostEnvironment environment)
         remito.FechaConfirmacionUtc.HasValue ? $"Devolución confirmada el {remito.FechaConfirmacionUtc.Value.EnArgentina():dd/MM/yyyy HH:mm}" : null,
         remito.Observaciones, remito.Tubos.Select(x => x.DiasEnPoderCliente).ToList());
 
-    public byte[] Carga(string titulo,string numero,DateTime fecha,string destino,string transporte,string estado,IReadOnlyList<string> tubos,string? observaciones,string usuario)
+    public byte[] Carga(string titulo,string numero,DateTime fecha,string destino,string transporte,string estado,IReadOnlyList<string> tubos,string? observaciones,string usuario,bool incluirPropietario=false)
     {
         using var documento=new PdfDocument();using var medicion=new PdfDocument();using var medir=XGraphics.FromPdfPage(medicion.AddPage());
         var unicode=new XPdfFontOptions(PdfFontEncoding.Unicode);var normal=new XFont("Arial",10,XFontStyleEx.Regular,unicode);var negrita=new XFont("Arial",10,XFontStyleEx.Bold,unicode);var pequeno=new XFont("Arial",8,XFontStyleEx.Regular,unicode);
         const double margen=42,ancho=511;
-        var recepcion=titulo.StartsWith("RECEPCIÓN");var columnas=recepcion?new[]{185d,85d,100d,141d}:new[]{ancho*.60,ancho*.20,ancho*.20};
+        var recepcion=titulo.StartsWith("RECEPCIÓN");var columnas=incluirPropietario?(recepcion?new[]{120d,60d,75d,146d,110d}:new[]{145d,70d,90d,206d}):(recepcion?new[]{185d,85d,100d,141d}:new[]{ancho*.60,ancho*.20,ancho*.20});
         List<string> Envolver(string texto,double anchoTexto)
         {
             var salida=new List<string>();var linea="";
@@ -82,7 +84,7 @@ public sealed class RemitoPdfGenerator(IWebHostEnvironment environment)
             if(estado=="Preparado"){g.DrawString("PENDIENTE DE VERIFICACIÓN · SALIDA NO CONFIRMADA",negrita,XBrushes.DarkRed,margen,y);y+=22;}
             if(paginaIndice<bloques.Count)
             {
-                string[] encabezados=recepcion?["Código del cilindro","Gas","Capacidad","Resultado"]:["Código del cilindro","Gas","Capacidad"];
+                string[] encabezados=incluirPropietario?(recepcion?["Código del cilindro","Gas","Capacidad","Propietario","Resultado"]:["Código del cilindro","Gas","Capacidad","Propietario"]):(recepcion?["Código del cilindro","Gas","Capacidad","Resultado"]:["Código del cilindro","Gas","Capacidad"]);
                 DibujarFila(g,margen,y,columnas,28,encabezados,true,normal,negrita);y+=28;
                 foreach(var fila in bloques[paginaIndice])
                 {
