@@ -35,7 +35,7 @@ builder.Services.AddAuthorization(options => options.DefaultPolicy = new Microso
 builder.Services.AddCors(options => options.AddPolicy("Blazor", policy =>
     policy.SetIsOriginAllowed(origin =>
         Uri.TryCreate(origin, UriKind.Absolute, out var uri) && uri.Port == 5000)
-        .AllowAnyHeader().AllowAnyMethod()));
+        .AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("Content-Disposition", "X-Respaldo-Sha256")));
 
 var app = builder.Build();
 

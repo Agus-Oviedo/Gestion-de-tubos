@@ -1,0 +1,47 @@
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+<section class="respaldo-local @(estado.Estado == "ok" ? "respaldo-local--ok" : "respaldo-local--pendiente")" aria-label="Copias de seguridad" aria-live="polite">
+    <div>
+        <strong>Copia de seguridad en esta PC</strong>
+        <div>@(ocupado ? "Preparando la copia. Mantené esta pestaña abierta…" : estado.Mensaje)</div>
+        @if (!string.IsNullOrEmpty(estado.Carpeta)) { <small>Carpeta: @estado.Carpeta</small> }
+        @if (!string.IsNullOrEmpty(estado.UltimaFecha)) { <small>Última copia: @estado.UltimaFecha · @estado.UltimoArchivo</small> }
+    </div>
+    <div class="respaldo-local-acciones">
+        @if (estado.Estado is "permiso" or "error")
+        {
+            <button type="button" class="btn btn-sm btn-primary" disabled="@ocupado" @onclick="Autorizar">Autorizar / reintentar copia</button>
+        }
+        <button type="button" class="btn btn-sm btn-outline-primary" disabled="@ocupado" @onclick="Elegir">@(string.IsNullOrEmpty(estado.Carpeta) ? "Elegir carpeta de copias" : "Cambiar carpeta")</button>
+    </div>
+</section>
+
+@code {
+    private EstadoCopia estado = new() { Mensaje = "Comprobando la copia diaria…" };
+    private bool ocupado;
+    private string ApiUrl => Http.BaseAddress!.AbsoluteUri.TrimEnd('/') + "/";
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await Ejecutar("iniciar");
+    }
+    private Task Elegir() => Ejecutar("elegir");
+    private Task Autorizar() => Ejecutar("autorizar");
+    private async Task Ejecutar(string accion)
+    {
+        if (ocupado) return;
+        ocupado = true;
+        try { estado = await JS.InvokeAsync<EstadoCopia>("respaldoLocal." + accion, TimeSpan.FromMinutes(5), ApiUrl); }
+        catch (JSException) { estado = new() { Estado = "error", Mensaje = "No se pudo comprobar la copia. Podés elegir la carpeta o reintentar." }; }
+        catch (OperationCanceledException) { estado = new() { Estado = "error", Mensaje = "La copia está demorando más de lo esperado. Comprobá la carpeta y volvé a abrir el sistema." }; }
+        finally { ocupado = false; await InvokeAsync(StateHasChanged); }
+    }
+    private sealed class EstadoCopia
+    {
+        public string Estado { get; set; } = "configurar";
+        public string Mensaje { get; set; } = "";
+        public string Carpeta { get; set; } = "";
+        public string UltimaFecha { get; set; } = "";
+        public string UltimoArchivo { get; set; } = "";
+    }
+}

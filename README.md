@@ -81,6 +81,10 @@ Restaurar una copia de seguridad de la base existente en una base separada de Mo
 
 ## Acceso desde Chrome en Windows 7
 
+Las copias locales diarias al abrir el sistema se configuran desde el aviso
+**Copia de seguridad en esta PC** con una cuenta administradora. Ver
+[configuración y recuperación](docs/copias-de-seguridad.md).
+
 El cliente se compila con `WasmEnableExceptionHandling=false` y
 `WasmEnableSIMD=false` para evitar funciones de WebAssembly que pueden impedir
 el inicio en Chrome 109 y equipos antiguos. Chrome 109 es la última versión

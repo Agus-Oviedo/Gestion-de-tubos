@@ -11,6 +11,9 @@
         </div>
 
         <article class="content px-4">
+            <AuthorizeView Roles="Superadministrador,Administrador">
+                <RespaldoLocal />
+            </AuthorizeView>
             @Body
         </article>
     </main>

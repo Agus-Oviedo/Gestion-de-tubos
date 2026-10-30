@@ -11,6 +11,7 @@ GestionTubos.Api/appsettings.*.local.json
 .env
 .env.*
 *.bak
+*.bacpac
 *.mdf
 *.ldf
 *.pfx

@@ -7,6 +7,8 @@ on:
     paths:
       - 'GestionTubos.*/**'
       - 'tests/Navegador/**'
+      - 'tests/Respaldos/**'
+      - 'tools/RecuperarRespaldo/**'
       - 'scripts/versionar-estilos.py'
       - '.github/workflows/publicar-compatible.yml'
 
@@ -43,6 +45,7 @@ jobs:
         run: |
           python3 -m http.server 8765 --directory .publish/chrome109/wwwroot > /tmp/gestion-tubos-http.log 2>&1 &
           node tests/Navegador/inicio.cjs
+          node tests/Navegador/respaldo-local.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: monsterasp-chrome109
@@ -55,3 +58,28 @@ jobs:
           path: .build-check/capturas/
           retention-days: 7
           if-no-files-found: error
+
+  recuperar:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    services:
+      sql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: 'Prueba_Respaldo_2026!Local'
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seleccionar SDK
+        run: echo '{"sdk":{"version":"8.0.415","rollForward":"disable"}}' > global.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.415'
+      - name: Exportar y recuperar en SQL Server separado
+        env:
+          RESPALDOS_TEST_SQL: 'Server=localhost,1433;User Id=sa;Password=Prueba_Respaldo_2026!Local;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5'
+        run: dotnet run --project tests/Respaldos/Respaldos.csproj
+      - name: Compilar herramienta de recuperacion
+        run: dotnet build tools/RecuperarRespaldo/RecuperarRespaldo.csproj -c Release

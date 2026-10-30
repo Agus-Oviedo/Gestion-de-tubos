@@ -1,4 +1,8 @@
 html, body { font-family: Inter, "Segoe UI", Arial, sans-serif; color:#10284a; background:#f4f7fb; }
+.respaldo-local { display:flex; flex-wrap:wrap; gap:.75rem; justify-content:space-between; align-items:center; margin-bottom:1.25rem; padding:.85rem 1rem; border:1px solid #dce7f3; border-left:4px solid #e6a321; border-radius:10px; background:#fff; font-size:.8rem; overflow-wrap:anywhere; }
+.respaldo-local--ok { border-left-color:#24a36a; }
+.respaldo-local small { display:block; color:#64809f; }
+.respaldo-local-acciones { display:flex; flex-wrap:wrap; gap:.5rem; }
 h1, h2, h3 { color:#072c67; font-weight:800; letter-spacing:-.025em; }
 h1 { font-size:2rem; }
 
