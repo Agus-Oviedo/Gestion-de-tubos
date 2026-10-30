@@ -99,6 +99,7 @@ Publicar la API completa, que incluye el cliente:
 
 ```powershell
 dotnet publish GestionTubos.Api/GestionTubos.Api.csproj -c Release -o .publish/chrome109
+python scripts/versionar-estilos.py .publish/chrome109/wwwroot
 ```
 
 En MonsterASP, detener temporalmente el sitio o usar `app_offline.htm` y
@@ -121,6 +122,10 @@ de acceso sin errores de arranque. Si pasa, entrega el artefacto
 `monsterasp-chrome109` listo para publicar, conservando los `appsettings` del
 servidor. No despliega automáticamente ni contiene credenciales del hosting.
 Esta prueba usa Linux y no sustituye la comprobación en la PC con Windows 7.
+También verifica el tamaño del logo, el menú lateral de escritorio y el menú
+móvil con datos simulados. Los enlaces CSS llevan una versión calculada desde
+el contenido del archivo para que una compilación nueva no reutilice estilos
+aislados de una compilación anterior almacenados en la caché del navegador.
 
 Esta adaptación apunta a la compatibilidad funcional. Chrome 109 y Windows 7
 están fuera del soporte de sus fabricantes; la prueba real sigue siendo

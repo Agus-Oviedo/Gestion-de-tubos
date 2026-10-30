@@ -7,6 +7,7 @@ on:
     paths:
       - 'GestionTubos.*/**'
       - 'tests/Navegador/**'
+      - 'scripts/versionar-estilos.py'
       - '.github/workflows/publicar-compatible.yml'
 
 permissions:
@@ -27,6 +28,8 @@ jobs:
         run: dotnet workload install wasm-tools --skip-manifest-update
       - name: Compilar publicacion
         run: dotnet publish GestionTubos.Api/GestionTubos.Api.csproj -c Release -o .publish/chrome109
+      - name: Versionar estilos para evitar hojas antiguas en cache
+        run: python3 scripts/versionar-estilos.py .publish/chrome109/wwwroot
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -44,5 +47,11 @@ jobs:
         with:
           name: monsterasp-chrome109
           path: .publish/chrome109/
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: capturas-chrome109
+          path: .build-check/capturas/
           retention-days: 7
           if-no-files-found: error
