@@ -79,6 +79,58 @@ Antes de cargar el contenido de `.publish/monsterasp`, configurar allí la conex
 
 Restaurar una copia de seguridad de la base existente en una base separada de MonsterASP antes de iniciar la aplicación. Esto conserva usuarios, catálogos y movimientos. Habilitar HTTPS y verificar el inicio de sesión y el stock después de publicar. La carpeta `.publish` está excluida del control de versiones porque puede contener configuraciones privadas y copias de seguridad.
 
+## Acceso desde Chrome en Windows 7
+
+El cliente se compila con `WasmEnableExceptionHandling=false` y
+`WasmEnableSIMD=false` para evitar funciones de WebAssembly que pueden impedir
+el inicio en Chrome 109 y equipos antiguos. Chrome 109 es la última versión
+oficial de Chrome para Windows 7; las versiones anteriores no se consideran
+validadas. Esto no cambia el sistema operativo requerido por el servidor.
+
+Esta configuración requiere recompilar el runtime de WebAssembly. En la PC
+de desarrollo/publicación, con el SDK de .NET 9 instalado, ejecutar una vez:
+
+```powershell
+dotnet workload install wasm-tools-net8
+```
+
+Con el SDK de .NET 8, la carga correspondiente se llama `wasm-tools`.
+Publicar la API completa, que incluye el cliente:
+
+```powershell
+dotnet publish GestionTubos.Api/GestionTubos.Api.csproj -c Release -o .publish/chrome109
+```
+
+En MonsterASP, detener temporalmente el sitio o usar `app_offline.htm` y
+actualizar la publicación completa, incluidos `wwwroot/_framework`,
+`wwwroot/index.html` y `wwwroot/startup.js`. Conservar la configuración privada
+de producción; no reemplazarla con la conexión local ni compartirla en Git.
+No mezclar archivos de distintas publicaciones. Volver a habilitar el sitio y
+abrirlo en la PC del cliente con Ctrl + F5 para renovar la caché.
+
+Validación pendiente en la PC real: confirmar la versión en
+`chrome://settings/help`; comprobar inicio de sesión, filtros de stock,
+registro de un movimiento autorizado, firma y descarga/impresión de un remito.
+Comprobar también el acceso desde un navegador actual. Si el inicio falla,
+la pantalla muestra el mensaje de error en lugar de dejar solamente el
+porcentaje; la consola de Chrome (F12 → Console) conserva el error completo.
+
+El workflow `Publicacion compatible con Chrome 109` compila en GitHub Actions,
+abre la publicación con Chromium 109 real y verifica que aparezca el formulario
+de acceso sin errores de arranque. Si pasa, entrega el artefacto
+`monsterasp-chrome109` listo para publicar, conservando los `appsettings` del
+servidor. No despliega automáticamente ni contiene credenciales del hosting.
+Esta prueba usa Linux y no sustituye la comprobación en la PC con Windows 7.
+
+Esta adaptación apunta a la compatibilidad funcional. Chrome 109 y Windows 7
+están fuera del soporte de sus fabricantes; la prueba real sigue siendo
+necesaria y no equivale a soporte oficial de Blazor para ese navegador.
+
+Referencias:
+- https://support.google.com/chrome/a/answer/7100626
+- https://github.com/dotnet/runtime/issues/95963
+- https://github.com/dotnet/runtime/blob/release/8.0/src/mono/wasm/features.md
+
 ## Stock de vacíos y carga externa
 
 En **Gestión → Vacíos y carga**, los tubos propios devueltos quedan vacíos en planta. Los dañados pasan a mantenimiento. Los vacíos aptos se pueden seleccionar individualmente o seleccionar todos para preparar un remito con destino/cargadora y transporte. La preparación reserva los tubos en planta; **Confirmar salida** los mueve a carga externa y los excluye del stock físico en planta. Un remito preparado se puede cancelar y libera sus tubos.

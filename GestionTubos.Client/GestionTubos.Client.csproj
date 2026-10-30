@@ -4,6 +4,11 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Chrome 109 (último para Windows 7) necesita el manejo de excepciones
+         mediante JavaScript. Evitar también SIMD para equipos antiguos.
+         Publicar requiere wasm-tools-net8 al usar el SDK de .NET 9. -->
+    <WasmEnableExceptionHandling>false</WasmEnableExceptionHandling>
+    <WasmEnableSIMD>false</WasmEnableSIMD>
   </PropertyGroup>
 
   <ItemGroup>

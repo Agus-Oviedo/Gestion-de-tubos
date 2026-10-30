@@ -1,0 +1,46 @@
+name: Publicacion compatible con Chrome 109
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'GestionTubos.*/**'
+      - 'tests/Navegador/**'
+      - '.github/workflows/publicar-compatible.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  publicar:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.415'
+      - name: Instalar herramientas WebAssembly
+        run: dotnet workload install wasm-tools --skip-manifest-update
+      - name: Compilar publicacion
+        run: dotnet publish GestionTubos.Api/GestionTubos.Api.csproj -c Release -o .publish/chrome109
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar Chromium 109 para la prueba de arranque
+        run: |
+          npm install --prefix .build-check/browser playwright@1.29.2
+          .build-check/browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Verificar inicio en Chromium 109
+        env:
+          NODE_PATH: ./.build-check/browser/node_modules
+        run: |
+          python3 -m http.server 8765 --directory .publish/chrome109/wwwroot > /tmp/gestion-tubos-http.log 2>&1 &
+          node tests/Navegador/inicio.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: monsterasp-chrome109
+          path: .publish/chrome109/
+          retention-days: 7
+          if-no-files-found: error

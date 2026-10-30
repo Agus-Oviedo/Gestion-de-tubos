@@ -26,6 +26,12 @@
             <circle r="40%" cx="50%" cy="50%" />
         </svg>
         <div class="loading-progress-text"></div>
+        <div id="startup-error" role="alert" hidden style="max-width: 38rem; margin: 2rem auto; padding: 1rem; text-align: center;">
+            <p>No se pudo iniciar el sistema. Probá recargar la página con Ctrl + F5.</p>
+            <p>Si el problema continúa, informá la versión de Chrome y el siguiente detalle:</p>
+            <pre id="startup-error-detail" style="white-space: pre-wrap; overflow-wrap: anywhere;"></pre>
+            <button type="button" onclick="window.location.reload()">Reintentar</button>
+        </div>
     </div>
 
     <div id="blazor-error-ui">
@@ -35,7 +41,8 @@
     </div>
     <script src="signature-pad.js?v=6"></script>
     <script src="responsive-tables.js?v=1"></script>
-    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script src="startup.js?v=20261030-chrome109"></script>
 </body>
 
 </html>
